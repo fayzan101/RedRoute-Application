@@ -103,6 +103,10 @@ RedRoute is a Flutter-based mobile application designed to help users navigate K
 ```
 Changelog:
 - July 01, 2025. Initial setup
+- July 01, 2025. Enhanced destination search to support any location in Karachi using Mapbox Geocoding API
+- July 01, 2025. Updated data models to handle comprehensive BRT routes JSON data with 13+ operational routes
+- July 01, 2025. Integrated real BRT stops data including Power House, Tower, Malir Halt, Drigh Road Station, etc.
+- July 01, 2025. Fixed Flutter compilation issues and updated TypeAhead widget API usage
 ```
 
 ## User Preferences
