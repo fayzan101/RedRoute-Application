@@ -8,10 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="RedRoute">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>RedRoute - Karachi Bus Navigation</title>
-  <link rel="manifest" href="manifest.json">
   
   <!-- Mapbox GL JS -->
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -22,6 +20,7 @@
       margin: 0;
       padding: 0;
       font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
     #loading {
@@ -31,11 +30,12 @@
       transform: translate(-50%, -50%);
       text-align: center;
       z-index: 1000;
+      color: white;
     }
     
     .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top: 4px solid #fff;
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -47,12 +47,25 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+      body {
+        font-size: 14px;
+      }
+      #loading {
+        width: 90%;
+        max-width: 300px;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="loading">
     <div class="spinner"></div>
-    <p>Loading RedRoute...</p>
+    <h2>RedRoute</h2>
+    <p>Karachi Bus Navigation</p>
+    <p>Loading app...</p>
   </div>
   
   <script>
@@ -62,37 +75,34 @@
     }
     
     window.addEventListener('load', function(ev) {
-      // Simple fallback loader that waits for Flutter to be ready
-      function tryLoad() {
+      // Wait for Flutter to load
+      var checkFlutter = setInterval(function() {
         if (typeof _flutter !== 'undefined' && _flutter.loader) {
-          try {
-            _flutter.loader.loadEntrypoint({
-              serviceWorker: {
-                serviceWorkerVersion: null,
-              }
-            }).then(function(engineInitializer) {
-              return engineInitializer.initializeEngine();
-            }).then(function(appRunner) {
-              document.getElementById('loading').style.display = 'none';
-              return appRunner.runApp();
-            });
-          } catch(e) {
-            // Try alternative loading method
-            if (typeof main !== 'undefined') {
-              main();
-              document.getElementById('loading').style.display = 'none';
-            } else {
-              console.error('Flutter loading failed:', e);
-              setTimeout(tryLoad, 1000);
-            }
-          }
-        } else {
-          setTimeout(tryLoad, 100);
+          clearInterval(checkFlutter);
+          
+          _flutter.loader.load().then(function(engineInitializer) {
+            return engineInitializer.initializeEngine();
+          }).then(function(appRunner) {
+            document.getElementById('loading').style.display = 'none';
+            return appRunner.runApp();
+          }).catch(function(error) {
+            console.error('Flutter loading error:', error);
+            document.getElementById('loading').innerHTML = 
+              '<h2>RedRoute</h2><p>Please refresh the page</p><button onclick="location.reload()">Refresh</button>';
+          });
         }
-      }
-      tryLoad();
+      }, 100);
+      
+      // Fallback timeout
+      setTimeout(function() {
+        if (document.getElementById('loading').style.display !== 'none') {
+          document.getElementById('loading').innerHTML = 
+            '<h2>RedRoute</h2><p>App is starting...</p><p>Please wait or refresh</p><button onclick="location.reload()">Refresh</button>';
+        }
+      }, 10000);
     });
   </script>
+  
   <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
