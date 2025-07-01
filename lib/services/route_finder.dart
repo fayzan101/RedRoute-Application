@@ -53,16 +53,21 @@ class RouteFinder {
     double minDistance = double.infinity;
     
     for (final stop in stops) {
-      final distance = DistanceCalculator.calculateDistance(
-        lat,
-        lng,
-        stop.lat,
-        stop.lng,
-      );
-      
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearest = stop;
+      try {
+        final distance = DistanceCalculator.calculateDistance(
+          lat,
+          lng,
+          stop.lat,
+          stop.lng,
+        );
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearest = stop;
+        }
+      } catch (e) {
+        // Skip invalid stop data
+        continue;
       }
     }
     

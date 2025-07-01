@@ -3,7 +3,14 @@ import 'package:http/http.dart' as http;
 
 class GeocodingService {
   static const String _baseUrl = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
-  static const String _accessToken = String.fromEnvironment('MAPBOX_PUBLIC_KEY', defaultValue: '');
+  static String get _accessToken {
+    // Try to get from environment, fallback to a working demo token
+    const envToken = String.fromEnvironment('MAPBOX_PUBLIC_KEY', defaultValue: '');
+    if (envToken.isNotEmpty) return envToken;
+    
+    // For demo purposes - replace with actual token
+    return 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+  }
 
   /// Search for places in Karachi using Mapbox Geocoding API
   static Future<List<LocationResult>> searchPlaces(String query) async {

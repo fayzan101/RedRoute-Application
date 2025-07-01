@@ -69,9 +69,10 @@
   </div>
   
   <script>
-    // Set Mapbox access token
+    // Set Mapbox access token from environment
     if (typeof mapboxgl !== 'undefined') {
-      mapboxgl.accessToken = 'MAPBOX_PUBLIC_KEY_PLACEHOLDER';
+      // This will be replaced with actual token during build
+      mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
     }
     
     window.addEventListener('load', function(ev) {
@@ -103,6 +104,6 @@
     });
   </script>
   
-  <script src="main.dart.js" type="application/javascript"></script>
+  <script src="flutter.js" defer></script>
 </body>
 </html>

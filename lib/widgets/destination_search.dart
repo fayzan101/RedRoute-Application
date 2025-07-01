@@ -7,6 +7,8 @@ import '../services/geocoding_service.dart';
 import '../models/stop.dart';
 import '../screens/map_screen.dart';
 
+enum SearchResultType { stop, location }
+
 class SearchResult {
   final String name;
   final String subtitle;
@@ -104,19 +106,33 @@ class _DestinationSearchState extends State<DestinationSearch> {
           suggestionsCallback: (pattern) async {
             if (pattern.isEmpty) return [];
             
-            final List<SearchResult> results = [];
-            
-            // Search BRT stops first
-            final dataService = context.read<DataService>();
-            await dataService.loadBRTData();
-            final brtStops = dataService.searchStops(pattern);
-            results.addAll(brtStops.map((stop) => SearchResult.fromStop(stop)));
-            
-            // Search general Karachi locations
-            final locations = await GeocodingService.searchPlaces(pattern);
-            results.addAll(locations.map((location) => SearchResult.fromLocation(location)));
-            
-            return results;
+            try {
+              final List<SearchResult> results = [];
+              
+              // Search BRT stops first
+              try {
+                final dataService = context.read<DataService>();
+                await dataService.loadBRTData();
+                final brtStops = dataService.searchStops(pattern);
+                results.addAll(brtStops.map((stop) => SearchResult.fromStop(stop)));
+              } catch (e) {
+                print('Error loading BRT stops: $e');
+              }
+              
+              // Search general Karachi locations
+              try {
+                final locations = await GeocodingService.searchPlaces(pattern);
+                results.addAll(locations.map((location) => SearchResult.fromLocation(location)));
+              } catch (e) {
+                print('Error searching locations: $e');
+                // If no results found, just continue silently
+              }
+              
+              return results;
+            } catch (e) {
+              print('General search error: $e');
+              return [];
+            }
           },
           itemBuilder: (context, SearchResult suggestion) {
             return ListTile(

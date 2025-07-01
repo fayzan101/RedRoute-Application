@@ -14,28 +14,64 @@ class DataService {
     if (_stops != null) return; // Already loaded
     
     try {
-      final String response = await rootBundle.loadString('assets/brt_stops.json');
+      // Try loading from the new bus routes file first
+      String response;
+      try {
+        response = await rootBundle.loadString('assets/bus_routes.json');
+      } catch (e) {
+        // Fallback to old file name
+        response = await rootBundle.loadString('assets/brt_stops.json');
+      }
+      
       final Map<String, dynamic> data = json.decode(response);
       
-      // Extract stops from all routes
+      // Handle both new and old data formats
       final List<Stop> allStops = [];
-      final routes = data['routes'] as List<dynamic>;
       
-      for (final route in routes) {
-        final routeStops = route['stops'] as List<dynamic>;
-        for (final stopJson in routeStops) {
-          final stop = Stop.fromJson(stopJson);
-          // Avoid duplicates
-          if (!allStops.any((s) => s.id == stop.id)) {
-            allStops.add(stop);
+      if (data.containsKey('routes')) {
+        // New format with routes
+        final routes = data['routes'] as List<dynamic>;
+        
+        for (final route in routes) {
+          final routeStops = route['stops'] as List<dynamic>;
+          for (final stopJson in routeStops) {
+            try {
+              final stop = Stop.fromJson(stopJson);
+              // Avoid duplicates
+              if (!allStops.any((s) => s.id == stop.id)) {
+                allStops.add(stop);
+              }
+            } catch (e) {
+              print('Error parsing stop: $e');
+              continue;
+            }
           }
         }
+      } else if (data.containsKey('stops')) {
+        // Direct stops format
+        final stops = data['stops'] as List<dynamic>;
+        for (final stopJson in stops) {
+          try {
+            final stop = Stop.fromJson(stopJson);
+            allStops.add(stop);
+          } catch (e) {
+            print('Error parsing stop: $e');
+            continue;
+          }
+        }
+      }
+      
+      if (allStops.isEmpty) {
+        throw Exception('No valid BRT stops found in data file');
       }
       
       _stops = allStops;
       _generateRoutes();
       
+      print('Loaded ${allStops.length} BRT stops successfully');
+      
     } catch (e) {
+      print('Failed to load BRT data: $e');
       throw Exception('Failed to load BRT data: $e');
     }
   }
