@@ -55,20 +55,28 @@
     <p>Loading RedRoute...</p>
   </div>
   
+  <script src="flutter.js" defer></script>
   <script>
-    // Set Mapbox access token from environment
-    mapboxgl.accessToken = 'MAPBOX_PUBLIC_KEY_PLACEHOLDER';
+    // Set Mapbox access token
+    if (typeof mapboxgl !== 'undefined') {
+      mapboxgl.accessToken = 'MAPBOX_PUBLIC_KEY_PLACEHOLDER';
+    }
     
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
-      if (typeof _flutter !== 'undefined') {
-        _flutter.loader.load().then(function(engineInitializer) {
-          return engineInitializer.initializeEngine();
-        }).then(function(appRunner) {
-          document.getElementById('loading').style.display = 'none';
-          return appRunner.runApp();
-        });
-      }
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        }
+      }).then(function(engineInitializer) {
+        return engineInitializer.initializeEngine();
+      }).then(function(appRunner) {
+        document.getElementById('loading').style.display = 'none';
+        return appRunner.runApp();
+      }).catch(function(error) {
+        console.error('Failed to load Flutter app:', error);
+        document.getElementById('loading').innerHTML = '<p>Failed to load app. Please refresh the page.</p>';
+      });
     });
   </script>
 </body>
