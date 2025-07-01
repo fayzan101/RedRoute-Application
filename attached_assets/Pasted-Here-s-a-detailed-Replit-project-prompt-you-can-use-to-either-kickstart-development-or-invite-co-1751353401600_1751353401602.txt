@@ -1,0 +1,177 @@
+Here’s a **detailed Replit project prompt** you can use to either kickstart development or invite collaborators to work on **RedRoute**, your Flutter + Mapbox app that helps people navigate Karachi’s RedBus network.
+
+---
+
+## 📍 Project Title:
+
+**RedRoute — A Smart Karachi Bus Navigation App (Flutter + Mapbox)**
+
+---
+
+## 📝 Project Description:
+
+**RedRoute** is a mobile application designed to help users in Karachi navigate the RedBus public transport system. It helps them get from their **current location** to their **desired destination** using the nearest BRT (Bus Rapid Transit) stops and routes. The app leverages **Mapbox for mapping**, **Flutter for cross-platform UI**, and optionally a lightweight backend (Firebase or FastAPI) for advanced logic and analytics.
+
+---
+
+## 🎯 Project Goals:
+
+* Allow users to enter any destination in Karachi
+* Identify the nearest BRT stop to the destination
+* Match routes and find the nearest stop to the user's current location
+* Display directions: walking + bus journey + optional transfers
+* Show the full route visually using Mapbox (stops, polylines)
+* Suggest how to reach the boarding stop (walk, rickshaw, Bykea)
+* Be simple, responsive, and functional on Android devices
+
+---
+
+## 📦 Tech Stack:
+
+| Component        | Tool/Framework                         |
+| ---------------- | -------------------------------------- |
+| Frontend         | **Flutter**                            |
+| Maps & UI        | **Mapbox** via `mapbox_gl` plugin      |
+| Location Access  | `geolocator`, `permission_handler`     |
+| Data Storage     | JSON (offline), optionally Firebase    |
+| Optional Backend | FastAPI (Python) or Firebase Functions |
+
+---
+
+## 📁 Data Files:
+
+We use a static dataset of Karachi’s BRT bus stops and their routes in the following JSON format:
+
+```json
+[
+  {
+    "name": "Malir Halt",
+    "lat": 24.8733,
+    "lng": 67.1592,
+    "routes": ["Route 1", "Route 9"]
+  },
+  ...
+]
+```
+
+File location: `assets/brt_stops.json`
+
+---
+
+## 🗺️ Core Features:
+
+### ✅ 1. Get User Location
+
+* Use GPS to determine where the user currently is.
+
+### ✅ 2. Destination Input
+
+* Users can either:
+
+  * Type a place name or stop
+  * Drop a pin on the map
+
+### ✅ 3. Nearest Stop Detection
+
+* Find the closest BRT stop to the destination (based on Haversine distance)
+* Then find a matching route and the closest stop on that route near the user
+
+### ✅ 4. Route Matching & Transfers
+
+* If no direct route exists, suggest a **transfer stop** that connects the two routes
+
+### ✅ 5. Route Visualization
+
+* Show all relevant stops on the route
+* Draw the bus path using Mapbox polylines
+* Mark:
+
+  * 🟢 Current location
+  * 🔵 Nearest stop
+  * 🔴 Destination stop
+
+### ✅ 6. Journey Suggestion
+
+* Text-based step-by-step directions
+* Mode suggestion:
+
+  * <500m → walk
+  * 500m–2km → rickshaw
+  * > 2km → Bykea (link to app)
+
+---
+
+## 📚 Suggested File Structure:
+
+```
+/assets
+  └── brt_stops.json
+
+/lib
+  ├── main.dart
+  ├── models/stop.dart
+  ├── screens/home.dart
+  ├── screens/map_screen.dart
+  ├── services/location_service.dart
+  ├── services/route_finder.dart
+  ├── widgets/stop_marker.dart
+  ├── widgets/route_info_card.dart
+```
+
+---
+
+## ✅ Future Features (Optional / Phase 2):
+
+* User login system with Firebase
+* Saving favorite routes
+* Real-time bus tracking (when supported by BRT)
+* Reverse routing (e.g., destination to home)
+* Urdu language toggle
+
+---
+
+## 🔧 Installation Instructions:
+
+1. Ensure Replit supports Flutter (use a Flutter template Repl)
+2. Add dependencies to `pubspec.yaml`:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  mapbox_gl: ^0.16.0
+  geolocator: ^10.0.0
+  permission_handler: ^11.0.0
+  flutter_typeahead: ^5.0.0
+  provider: ^6.0.0
+```
+
+3. Add your `Mapbox Access Token` to `main.dart` or environment config
+
+4. Add the `brt_stops.json` to `/assets/` and include it in `pubspec.yaml`:
+
+```yaml
+flutter:
+  assets:
+    - assets/brt_stops.json
+```
+
+---
+
+## 💡 For Collaborators / Contributors:
+
+If you're helping with this project, here are possible roles:
+
+| Role          | Responsibilities                                |
+| ------------- | ----------------------------------------------- |
+| UI Designer   | Design clean layouts for map, route cards, etc. |
+| Flutter Dev   | Implement logic, screens, and map integration   |
+| Data Engineer | Clean and maintain BRT data (JSON / GeoJSON)    |
+| Backend Dev   | (Optional) Write FastAPI or Firebase backend    |
+| UX Tester     | Try different routes, suggest improvements      |
+
+---
+
+Would you like me to generate this project scaffold (`main.dart`, sample UI, logic starter) for you on Replit or as a downloadable zip?
+
+Let me know, and we can kick off RedRoute right away!
