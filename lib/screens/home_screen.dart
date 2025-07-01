@@ -45,8 +45,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RedRoute'),
-        subtitle: const Text('Karachi Bus Navigation'),
+        title: const Column(
+          children: [
+            Text('RedRoute'),
+            Text(
+              'Karachi Bus Navigation',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
         centerTitle: true,
       ),
       body: Consumer<LocationService>(

@@ -15,21 +15,21 @@ class Stop {
 
   factory Stop.fromJson(Map<String, dynamic> json) {
     return Stop(
-      id: json['id'] as String,
+      id: json['stopId'] as String,
       name: json['name'] as String,
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
-      routes: List<String>.from(json['routes'] as List),
+      lat: (json['latitude'] as num).toDouble(),
+      lng: (json['longitude'] as num).toDouble(),
+      routes: List<String>.from(json['availableRoutes'] as List),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'stopId': id,
       'name': name,
-      'lat': lat,
-      'lng': lng,
-      'routes': routes,
+      'latitude': lat,
+      'longitude': lng,
+      'availableRoutes': routes,
     };
   }
 

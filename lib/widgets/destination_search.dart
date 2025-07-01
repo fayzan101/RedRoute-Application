@@ -29,29 +29,33 @@ class _DestinationSearchState extends State<DestinationSearch> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TypeAheadField<Stop>(
-          textFieldConfiguration: TextFieldConfiguration(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: 'Search for a destination or BRT stop...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _controller.clear();
-                        setState(() {
-                          _selectedStop = null;
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          controller: _controller,
+          builder: (context, controller, focusNode) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                hintText: 'Search for a destination or BRT stop...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _controller.clear();
+                          setState(() {
+                            _selectedStop = null;
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
               ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-            ),
-          ),
+            );
+          },
           suggestionsCallback: (pattern) async {
             if (pattern.isEmpty) return [];
             
@@ -77,13 +81,13 @@ class _DestinationSearchState extends State<DestinationSearch> {
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             );
           },
-          onSuggestionSelected: (Stop suggestion) {
+          onSelected: (Stop suggestion) {
             setState(() {
               _selectedStop = suggestion;
               _controller.text = suggestion.name;
             });
           },
-          noItemsFoundBuilder: (context) => const Padding(
+          emptyBuilder: (context) => const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
               'No BRT stops found.\nTry searching for major landmarks or areas.',

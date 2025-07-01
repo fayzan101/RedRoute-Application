@@ -15,9 +15,24 @@ class DataService {
     
     try {
       final String response = await rootBundle.loadString('assets/brt_stops.json');
-      final List<dynamic> data = json.decode(response);
+      final Map<String, dynamic> data = json.decode(response);
       
-      _stops = data.map((json) => Stop.fromJson(json)).toList();
+      // Extract stops from all routes
+      final List<Stop> allStops = [];
+      final routes = data['routes'] as List<dynamic>;
+      
+      for (final route in routes) {
+        final routeStops = route['stops'] as List<dynamic>;
+        for (final stopJson in routeStops) {
+          final stop = Stop.fromJson(stopJson);
+          // Avoid duplicates
+          if (!allStops.any((s) => s.id == stop.id)) {
+            allStops.add(stop);
+          }
+        }
+      }
+      
+      _stops = allStops;
       _generateRoutes();
       
     } catch (e) {

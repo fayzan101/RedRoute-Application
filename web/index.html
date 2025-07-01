@@ -56,19 +56,19 @@
   </div>
   
   <script>
+    // Set Mapbox access token from environment
+    mapboxgl.accessToken = 'MAPBOX_PUBLIC_KEY_PLACEHOLDER';
+    
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            document.getElementById('loading').style.display = 'none';
-            appRunner.runApp();
-          });
-        }
-      });
+      if (typeof _flutter !== 'undefined') {
+        _flutter.loader.load().then(function(engineInitializer) {
+          return engineInitializer.initializeEngine();
+        }).then(function(appRunner) {
+          document.getElementById('loading').style.display = 'none';
+          return appRunner.runApp();
+        });
+      }
     });
   </script>
 </body>
