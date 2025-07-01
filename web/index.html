@@ -55,7 +55,6 @@
     <p>Loading RedRoute...</p>
   </div>
   
-  <script src="flutter.js" defer></script>
   <script>
     // Set Mapbox access token
     if (typeof mapboxgl !== 'undefined') {
@@ -63,21 +62,37 @@
     }
     
     window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
+      // Simple fallback loader that waits for Flutter to be ready
+      function tryLoad() {
+        if (typeof _flutter !== 'undefined' && _flutter.loader) {
+          try {
+            _flutter.loader.loadEntrypoint({
+              serviceWorker: {
+                serviceWorkerVersion: null,
+              }
+            }).then(function(engineInitializer) {
+              return engineInitializer.initializeEngine();
+            }).then(function(appRunner) {
+              document.getElementById('loading').style.display = 'none';
+              return appRunner.runApp();
+            });
+          } catch(e) {
+            // Try alternative loading method
+            if (typeof main !== 'undefined') {
+              main();
+              document.getElementById('loading').style.display = 'none';
+            } else {
+              console.error('Flutter loading failed:', e);
+              setTimeout(tryLoad, 1000);
+            }
+          }
+        } else {
+          setTimeout(tryLoad, 100);
         }
-      }).then(function(engineInitializer) {
-        return engineInitializer.initializeEngine();
-      }).then(function(appRunner) {
-        document.getElementById('loading').style.display = 'none';
-        return appRunner.runApp();
-      }).catch(function(error) {
-        console.error('Failed to load Flutter app:', error);
-        document.getElementById('loading').innerHTML = '<p>Failed to load app. Please refresh the page.</p>';
-      });
+      }
+      tryLoad();
     });
   </script>
+  <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
