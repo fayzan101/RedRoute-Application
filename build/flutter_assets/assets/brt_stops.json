@@ -1,0 +1,142 @@
+[
+  {
+    "id": "ms01",
+    "name": "Malir Halt",
+    "lat": 24.8733,
+    "lng": 67.1592,
+    "routes": ["Route 1", "Route 9"]
+  },
+  {
+    "id": "ms02", 
+    "name": "Landhi",
+    "lat": 24.8615,
+    "lng": 67.1821,
+    "routes": ["Route 1"]
+  },
+  {
+    "id": "ms03",
+    "name": "Korangi Crossing",
+    "lat": 24.8398,
+    "lng": 67.1889,
+    "routes": ["Route 1", "Route 2"]
+  },
+  {
+    "id": "ms04",
+    "name": "Drigh Road",
+    "lat": 24.8012,
+    "lng": 67.1956,
+    "routes": ["Route 1", "Route 2"]
+  },
+  {
+    "id": "ms05",
+    "name": "Stadium",
+    "lat": 24.7898,
+    "lng": 67.2145,
+    "routes": ["Route 1", "Route 2", "Route 3"]
+  },
+  {
+    "id": "ms06",
+    "name": "Numaish",
+    "lat": 24.7756,
+    "lng": 67.2234,
+    "routes": ["Route 1", "Route 2", "Route 3"]
+  },
+  {
+    "id": "ms07",
+    "name": "Gurumandir",
+    "lat": 24.7689,
+    "lng": 67.2356,
+    "routes": ["Route 1", "Route 2", "Route 3"]
+  },
+  {
+    "id": "ms08",
+    "name": "Shahrah-e-Liaquat",
+    "lat": 24.7612,
+    "lng": 67.2445,
+    "routes": ["Route 2", "Route 3"]
+  },
+  {
+    "id": "ms09",
+    "name": "Tower",
+    "lat": 24.7523,
+    "lng": 67.2534,
+    "routes": ["Route 2", "Route 3", "Route 4"]
+  },
+  {
+    "id": "ms10",
+    "name": "Shahrah-e-Pakistan",
+    "lat": 24.7445,
+    "lng": 67.2612,
+    "routes": ["Route 3", "Route 4"]
+  },
+  {
+    "id": "ms11",
+    "name": "Nazimabad",
+    "lat": 24.7912,
+    "lng": 67.2789,
+    "routes": ["Route 4", "Route 5"]
+  },
+  {
+    "id": "ms12",
+    "name": "Gulshan-e-Iqbal",
+    "lat": 24.8156,
+    "lng": 67.2934,
+    "routes": ["Route 5", "Route 6"]
+  },
+  {
+    "id": "ms13",
+    "name": "University Road",
+    "lat": 24.8234,
+    "lng": 67.3012,
+    "routes": ["Route 5", "Route 6"]
+  },
+  {
+    "id": "ms14",
+    "name": "Guru Mandir",
+    "lat": 24.7689,
+    "lng": 67.2356,
+    "routes": ["Route 6", "Route 7"]
+  },
+  {
+    "id": "ms15",
+    "name": "Saddar",
+    "lat": 24.7412,
+    "lng": 67.2445,
+    "routes": ["Route 7", "Route 8"]
+  },
+  {
+    "id": "ms16",
+    "name": "Empress Market",
+    "lat": 24.7334,
+    "lng": 67.2512,
+    "routes": ["Route 7", "Route 8"]
+  },
+  {
+    "id": "ms17",
+    "name": "Frere Hall",
+    "lat": 24.7289,
+    "lng": 67.2578,
+    "routes": ["Route 8"]
+  },
+  {
+    "id": "ms18",
+    "name": "Clifton",
+    "lat": 24.7123,
+    "lng": 67.2689,
+    "routes": ["Route 8", "Route 9"]
+  },
+  {
+    "id": "ms19",
+    "name": "Defence Phase II",
+    "lat": 24.7045,
+    "lng": 67.2812,
+    "routes": ["Route 9"]
+  },
+  {
+    "id": "ms20",
+    "name": "Gulshan-e-Maymar",
+    "lat": 24.9123,
+    "lng": 67.1234,
+    "routes": ["Route 9", "Route 10"]
+  }
+]
