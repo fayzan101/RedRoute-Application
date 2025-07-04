@@ -205,6 +205,51 @@ class _HomeScreenState extends State<HomeScreen> {
             
             const SizedBox(height: 16),
             
+            // New UI Demos
+            Text(
+              'New UI Screens',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickActionCard(
+                    icon: Icons.waving_hand,
+                    title: 'Welcome',
+                    subtitle: 'Onboarding screen',
+                    onTap: () => Navigator.pushNamed(context, '/welcome'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildQuickActionCard(
+                    icon: Icons.search,
+                    title: 'Map Search',
+                    subtitle: 'Search interface',
+                    onTap: () => Navigator.pushNamed(context, '/map-search'),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            Center(
+              child: SizedBox(
+                width: 200,
+                child: _buildQuickActionCard(
+                  icon: Icons.route,
+                  title: 'Route Details',
+                  subtitle: 'Journey planning',
+                  onTap: () => Navigator.pushNamed(context, '/route-details'),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
             // Information Card
             Card(
               color: Colors.blue.shade50,

@@ -8,7 +8,6 @@
 
 import 'package:flutter_keyboard_visibility_web/flutter_keyboard_visibility_web.dart';
 import 'package:geolocator_web/geolocator_web.dart';
-import 'package:mapbox_gl_web/mapbox_gl_web.dart';
 import 'package:permission_handler_html/permission_handler_html.dart';
 import 'package:pointer_interceptor_web/pointer_interceptor_web.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
@@ -17,7 +16,6 @@ void registerPlugins([final Registrar? pluginRegistrar]) {
   final Registrar registrar = pluginRegistrar ?? webPluginRegistrar;
   FlutterKeyboardVisibilityPlugin.registerWith(registrar);
   GeolocatorPlugin.registerWith(registrar);
-  MapboxMapPlugin.registerWith(registrar);
   WebPermissionHandler.registerWith(registrar);
   PointerInterceptorWeb.registerWith(registrar);
   registrar.registerMessageHandler();

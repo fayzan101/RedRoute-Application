@@ -7,7 +7,7 @@ import '../services/geocoding_service.dart';
 import '../models/stop.dart';
 import '../screens/map_screen.dart';
 
-enum SearchResultType { stop, location }
+enum SearchResultType { brtStop, generalLocation }
 
 class SearchResult {
   final String name;
@@ -50,8 +50,6 @@ class SearchResult {
     );
   }
 }
-
-enum SearchResultType { brtStop, generalLocation }
 
 class DestinationSearch extends StatefulWidget {
   const DestinationSearch({super.key});

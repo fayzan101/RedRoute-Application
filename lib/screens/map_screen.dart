@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/location_service.dart';
 import '../services/data_service.dart';
 import '../services/route_finder.dart';
 import '../models/route.dart';
 import '../widgets/route_info_card.dart';
-import '../utils/distance_calculator.dart';
 
 class MapScreen extends StatefulWidget {
   final double? destinationLat;
@@ -27,6 +28,7 @@ class _MapScreenState extends State<MapScreen> {
   Journey? _currentJourney;
   bool _isLoadingRoute = false;
   String? _routeError;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -89,23 +91,17 @@ class _MapScreenState extends State<MapScreen> {
             icon: const Icon(Icons.my_location),
             onPressed: () {
               context.read<LocationService>().getCurrentLocation();
+              _centerMapOnUserLocation();
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Map placeholder (since we can't use actual Mapbox in this environment)
+          // Flutter Map
           Expanded(
             flex: 2,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: _buildMapPlaceholder(),
-            ),
+            child: _buildFlutterMap(),
           ),
           
           // Route information
@@ -172,332 +168,146 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildMapPlaceholder() {
+  Widget _buildFlutterMap() {
     return Consumer2<LocationService, DataService>(
       builder: (context, locationService, dataService, child) {
         final userPosition = locationService.currentPosition;
         final stops = dataService.stops;
 
-        return Stack(
-          children: [
-            // Background
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFE3F2FD),
-                    Color(0xFFF3E5F5),
-                  ],
+        // Determine center position
+        LatLng centerPosition;
+        if (userPosition != null) {
+          centerPosition = LatLng(userPosition.latitude, userPosition.longitude);
+        } else {
+          centerPosition = const LatLng(24.8607, 67.0011); // Karachi center
+        }
+
+        // Create markers
+        List<Marker> markers = [];
+        
+        // Add user location marker
+        if (userPosition != null) {
+          markers.add(
+            Marker(
+              point: LatLng(userPosition.latitude, userPosition.longitude),
+              width: 40,
+              height: 40,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(
+                  Icons.my_location,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
             ),
-            
-            // Map content
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Map header
-                  Container(
-                    padding: const EdgeInsets.all(12),
+          );
+        }
+
+        // Add destination marker
+        if (widget.destinationLat != null && widget.destinationLng != null) {
+          markers.add(
+            Marker(
+              point: LatLng(widget.destinationLat!, widget.destinationLng!),
+              width: 40,
+              height: 40,
+              child: Container(
                     decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(
+                  Icons.place,
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.map, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Interactive Map View',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'LIVE',
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                  size: 20,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Current location
-                  if (userPosition != null)
-                    _buildLocationCard(
-                      icon: Icons.my_location,
-                      title: 'Your Location',
-                      subtitle: 'Lat: ${userPosition.latitude.toStringAsFixed(4)}, '
-                          'Lng: ${userPosition.longitude.toStringAsFixed(4)}',
-                      color: Colors.blue,
-                    ),
-                  
-                  // Destination
-                  if (widget.destinationLat != null && widget.destinationLng != null)
-                    _buildLocationCard(
-                      icon: Icons.place,
-                      title: widget.destinationName ?? 'Destination',
-                      subtitle: 'Lat: ${widget.destinationLat!.toStringAsFixed(4)}, '
-                          'Lng: ${widget.destinationLng!.toStringAsFixed(4)}',
-                      color: Colors.red,
-                    ),
-                  
-                  // Journey info
-                  if (_currentJourney != null) ...[
-                    const SizedBox(height: 16),
-                    _buildJourneyOverview(),
-                  ],
-                  
-                  // Nearby stops
-                  if (userPosition != null && stops.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _buildNearbyStops(userPosition.latitude, userPosition.longitude, stops),
-                  ],
-                ],
+          );
+        }
+
+        // Add BRT stop markers
+        for (final stop in stops.take(20)) { // Limit to 20 stops for performance
+          markers.add(
+            Marker(
+              point: LatLng(stop.lat, stop.lng),
+              width: 30,
+              height: 30,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: const Icon(
+                  Icons.directions_bus,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ),
-            
-            // Map controls
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: Column(
+          );
+        }
+
+        return FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: centerPosition,
+            initialZoom: 12.0,
+            minZoom: 8.0,
+            maxZoom: 18.0,
+          ),
                 children: [
-                  FloatingActionButton.small(
-                    heroTag: 'zoom_in',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Zoom In')),
-                      );
-                    },
-                    child: const Icon(Icons.zoom_in),
-                  ),
-                  const SizedBox(height: 8),
-                  FloatingActionButton.small(
-                    heroTag: 'zoom_out',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Zoom Out')),
-                      );
-                    },
-                    child: const Icon(Icons.zoom_out),
-                  ),
-                ],
-              ),
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.redroute.karachi',
+              maxZoom: 19,
             ),
+            MarkerLayer(markers: markers),
+            if (_currentJourney != null) _buildRoutePolylines(),
           ],
         );
       },
     );
   }
 
-  Widget _buildLocationCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJourneyOverview() {
+  Widget _buildRoutePolylines() {
     if (_currentJourney == null) return const SizedBox();
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.route, color: Colors.green.shade700),
-              const SizedBox(width: 8),
-              Text(
-                'Route Overview',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.directions_bus, size: 16, color: Colors.green.shade600),
-              const SizedBox(width: 4),
-              Text(
-                '${_currentJourney!.startStop.name} → ${_currentJourney!.endStop.name}',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Icon(Icons.straighten, size: 16, color: Colors.green.shade600),
-              const SizedBox(width: 4),
-              Text(
-                'Total: ${DistanceCalculator.formatDistance(_currentJourney!.totalDistance)}',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
-          if (_currentJourney!.requiresTransfer)
-            Row(
-              children: [
-                Icon(Icons.swap_horiz, size: 16, color: Colors.orange.shade600),
-                const SizedBox(width: 4),
-                Text(
-                  'Transfer at ${_currentJourney!.transferStop?.name ?? "Unknown"}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-        ],
-      ),
+    final List<LatLng> routePoints = [];
+    
+    // Add route points from journey
+    for (final route in _currentJourney!.routes) {
+      for (final stop in route.stops) {
+        routePoints.add(LatLng(stop.lat, stop.lng));
+      }
+    }
+
+    return PolylineLayer(
+      polylines: [
+        Polyline(
+          points: routePoints,
+          color: Theme.of(context).primaryColor,
+          strokeWidth: 4.0,
+        ),
+      ],
     );
   }
 
-  Widget _buildNearbyStops(double userLat, double userLng, List stops) {
-    // Find nearby stops (within 2km)
-    final nearbyStops = stops.where((stop) {
-      final distance = DistanceCalculator.calculateDistance(
-        userLat,
-        userLng,
-        stop.lat,
-        stop.lng,
+  void _centerMapOnUserLocation() {
+    final locationService = context.read<LocationService>();
+    final userPosition = locationService.currentPosition;
+    
+    if (userPosition != null) {
+      _mapController.move(
+        LatLng(userPosition.latitude, userPosition.longitude),
+        14.0,
       );
-      return distance <= 2000; // 2km
-    }).take(3).toList();
-
-    if (nearbyStops.isEmpty) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.near_me, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(
-                'Nearby BRT Stops',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...nearbyStops.map((stop) {
-            final distance = DistanceCalculator.calculateDistance(
-              userLat,
-              userLng,
-              stop.lat,
-              stop.lng,
-            );
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Icon(Icons.bus_alert, size: 16, color: Colors.blue.shade600),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      '${stop.name} (${DistanceCalculator.formatDistance(distance)})',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
+    }
   }
 }
