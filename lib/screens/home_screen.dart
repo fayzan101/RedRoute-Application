@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
+import '../services/geocoding_service.dart';
 import '../services/data_service.dart';
-import 'map_screen.dart';
 import '../widgets/destination_search.dart';
+import 'map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = [
+    const HomeTab(),
+    const MapTab(),
+    const RoutesTab(),
+    const SettingsTab(),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +50,47 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        selectedItemColor: const Color(0xFFE53E3E),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.directions_bus),
+            label: 'Routes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Home Tab
+class HomeTab extends StatelessWidget {
+  const HomeTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -109,15 +160,15 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          return _buildMainContent();
+          return _buildMainContent(context, locationService);
         },
       ),
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent(BuildContext context, LocationService locationService) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -140,6 +191,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           'Current Location',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
+                        const Spacer(),
+                        Consumer<LocationService>(
+                          builder: (context, locationService, child) {
+                            return IconButton(
+                              onPressed: locationService.isLoading 
+                                ? null 
+                                : () async {
+                                    await locationService.getCurrentLocation();
+                                  },
+                              icon: locationService.isLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.refresh, size: 20),
+                              tooltip: 'Refresh location',
+                            );
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -147,13 +218,56 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (context, locationService, child) {
                         final position = locationService.currentPosition;
                         if (position != null) {
-                          return Text(
-                            'Lat: ${position.latitude.toStringAsFixed(4)}, '
-                            'Lng: ${position.longitude.toStringAsFixed(4)}',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lat: ${position.latitude.toStringAsFixed(4)}, '
+                                'Lng: ${position.longitude.toStringAsFixed(4)}',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              FutureBuilder<String?>(
+                                future: GeocodingService.getAddressFromCoordinates(
+                                  position.latitude,
+                                  position.longitude,
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Text(
+                                      'Getting address...',
+                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    );
+                                  }
+                                  if (snapshot.hasData && snapshot.data != null) {
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          snapshot.data!,
+                                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Accuracy: ${position.accuracy.toStringAsFixed(1)}m',
+                                          style: const TextStyle(color: Colors.blue, fontSize: 10),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return const Text(
+                                    'Address not available',
+                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  );
+                                },
+                              ),
+                            ],
                           );
                         }
-                        return const Text('Location not available');
+                        return const Text(
+                          'Location not available',
+                          style: TextStyle(color: Colors.grey),
+                        );
                       },
                     ),
                   ],
@@ -170,85 +284,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             
+            // Destination Search
             const DestinationSearch(),
             
             const SizedBox(height: 32),
-            
-            // Quick Actions
-            Text(
-              'Quick Actions',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionCard(
-                    icon: Icons.map,
-                    title: 'View Map',
-                    subtitle: 'Explore BRT stops',
-                    onTap: () => _navigateToMap(),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildQuickActionCard(
-                    icon: Icons.directions_bus,
-                    title: 'Find Routes',
-                    subtitle: 'Search bus routes',
-                    onTap: () => _showRouteInfo(),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // New UI Demos
-            Text(
-              'New UI Screens',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionCard(
-                    icon: Icons.waving_hand,
-                    title: 'Welcome',
-                    subtitle: 'Onboarding screen',
-                    onTap: () => Navigator.pushNamed(context, '/welcome'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildQuickActionCard(
-                    icon: Icons.search,
-                    title: 'Map Search',
-                    subtitle: 'Search interface',
-                    onTap: () => Navigator.pushNamed(context, '/map-search'),
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: _buildQuickActionCard(
-                  icon: Icons.route,
-                  title: 'Route Details',
-                  subtitle: 'Journey planning',
-                  onTap: () => Navigator.pushNamed(context, '/route-details'),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
             
             // Information Card
             Card(
@@ -284,97 +323,170 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 32), // Bottom padding for better scrolling
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                size: 32,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+// Map Tab
+class MapTab extends StatelessWidget {
+  const MapTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MapScreen();
   }
+}
 
-  void _navigateToMap() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const MapScreen(),
+// Routes Tab
+class RoutesTab extends StatelessWidget {
+  const RoutesTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('BRT Routes'),
       ),
-    );
-  }
-
-  void _showRouteInfo() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('BRT Routes Information'),
-        content: Consumer<DataService>(
-          builder: (context, dataService, child) {
-            final routes = dataService.getAllRouteNames();
-            if (routes.isEmpty) {
-              return const Text('Loading route information...');
-            }
-            
-            return SizedBox(
-              width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: routes.length,
-                itemBuilder: (context, index) {
-                  final route = dataService.getRouteByName(routes[index]);
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: Text(
-                        routes[index].split(' ').last,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    title: Text(routes[index]),
-                    subtitle: Text('${route?.stops.length ?? 0} stops'),
-                  );
-                },
+      body: Consumer<DataService>(
+        builder: (context, dataService, child) {
+          final routes = dataService.getAllRouteNames();
+          
+          if (routes.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading routes...'),
+                ],
               ),
             );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: routes.length,
+            itemBuilder: (context, index) {
+              final route = dataService.getRouteByName(routes[index]);
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12.0),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: Text(
+                      routes[index].split(' ').last,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(
+                    routes[index],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('${route?.stops.length ?? 0} stops'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Navigate to route details
+                    Navigator.pushNamed(context, '/route-details');
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// Settings Tab
+class SettingsTab extends StatelessWidget {
+  const SettingsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.location_on),
+                  title: const Text('Location Services'),
+                  subtitle: const Text('Manage location permissions'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Handle location settings
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.notifications),
+                  title: const Text('Notifications'),
+                  subtitle: const Text('Manage app notifications'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Handle notification settings
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: const Text('Language'),
+                  subtitle: const Text('English'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Handle language settings
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('About'),
+                  subtitle: const Text('App version and information'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Show about dialog
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'RedRoute',
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(Icons.directions_bus),
+                      children: const [
+                        Text('Karachi Bus Navigation App'),
+                        SizedBox(height: 8),
+                        Text('Find the best BRT routes in Karachi'),
+                      ],
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.help_outline),
+                  title: const Text('Help & Support'),
+                  subtitle: const Text('Get help and contact support'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    // Handle help and support
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),

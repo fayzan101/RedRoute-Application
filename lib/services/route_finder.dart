@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import '../models/stop.dart';
 import '../models/route.dart';
 import '../utils/distance_calculator.dart';
 import 'data_service.dart';
 
-class RouteFinder {
+class RouteFinder extends ChangeNotifier {
   final DataService _dataService;
   
   RouteFinder(this._dataService);

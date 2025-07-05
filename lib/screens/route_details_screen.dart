@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/route.dart';
 
 class RouteDetailsScreen extends StatelessWidget {
-  const RouteDetailsScreen({super.key});
+  final Journey? journey;
+  
+  const RouteDetailsScreen({super.key, this.journey});
 
   @override
   Widget build(BuildContext context) {
@@ -64,21 +67,39 @@ class RouteDetailsScreen extends StatelessWidget {
                   ),
                   
                   // Transport options
-                  _buildTransportOption(
-                    icon: Icons.directions_walk,
-                    title: 'Walk to Stop 1',
-                    subtitle: '10 min walk',
-                  ),
-                  _buildTransportOption(
-                    icon: Icons.motorcycle,
-                    title: 'Bykea to Stop 1',
-                    subtitle: '15 min Bykea',
-                  ),
-                  _buildTransportOption(
-                    icon: Icons.directions_car,
-                    title: 'Rickshaw to Stop 1',
-                    subtitle: '20 min Rickshaw',
-                  ),
+                  if (journey != null) ...[
+                    _buildTransportOption(
+                      icon: Icons.directions_walk,
+                      title: 'Walk to ${journey!.startStop.name}',
+                      subtitle: '${(journey!.walkingDistanceToStart * 1000).round()}m walk',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.motorcycle,
+                      title: 'Bykea to ${journey!.startStop.name}',
+                      subtitle: '${(journey!.walkingDistanceToStart * 1000 / 500).round()} min Bykea',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.directions_car,
+                      title: 'Rickshaw to ${journey!.startStop.name}',
+                      subtitle: '${(journey!.walkingDistanceToStart * 1000 / 300).round()} min Rickshaw',
+                    ),
+                  ] else ...[
+                    _buildTransportOption(
+                      icon: Icons.directions_walk,
+                      title: 'Walk to Stop 1',
+                      subtitle: '10 min walk',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.motorcycle,
+                      title: 'Bykea to Stop 1',
+                      subtitle: '15 min Bykea',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.directions_car,
+                      title: 'Rickshaw to Stop 1',
+                      subtitle: '20 min Rickshaw',
+                    ),
+                  ],
                   
                   // Bus Route section
                   Padding(
@@ -205,25 +226,74 @@ class RouteDetailsScreen extends StatelessWidget {
   }
 
   List<Widget> _buildStopsList() {
-    final stops = [
-      'Stop 1', 'Stop 2', 'Stop 3', 'Stop 4', 'Stop 5',
-      'Stop 6', 'Stop 7', 'Stop 8', 'Stop 9', 'Stop 10'
-    ];
+    if (journey == null || journey!.routes.isEmpty) {
+      final stops = [
+        'Stop 1', 'Stop 2', 'Stop 3', 'Stop 4', 'Stop 5',
+        'Stop 6', 'Stop 7', 'Stop 8', 'Stop 9', 'Stop 10'
+      ];
+      return stops.map((stop) => _buildStopItem(stop)).toList();
+    }
     
-    return stops.map((stop) => _buildStopItem(stop)).toList();
+    final List<Widget> stopWidgets = [];
+    
+    // Add start stop
+    stopWidgets.add(_buildStopItem(journey!.startStop.name, isStart: true));
+    
+    // Add route stops
+    for (final route in journey!.routes) {
+      for (final stop in route.stops) {
+        if (stop.id != journey!.startStop.id && stop.id != journey!.endStop.id) {
+          stopWidgets.add(_buildStopItem(stop.name));
+        }
+      }
+    }
+    
+    // Add transfer stop if exists
+    if (journey!.transferStop != null) {
+      stopWidgets.add(_buildStopItem(journey!.transferStop!.name, isTransfer: true));
+    }
+    
+    // Add end stop
+    stopWidgets.add(_buildStopItem(journey!.endStop.name, isEnd: true));
+    
+    return stopWidgets;
   }
 
-  Widget _buildStopItem(String stopName) {
+  Widget _buildStopItem(String stopName, {bool isStart = false, bool isEnd = false, bool isTransfer = false}) {
+    IconData icon;
+    Color iconColor;
+    
+    if (isStart) {
+      icon = Icons.trip_origin;
+      iconColor = Colors.green;
+    } else if (isEnd) {
+      icon = Icons.place;
+      iconColor = Colors.red;
+    } else if (isTransfer) {
+      icon = Icons.swap_horiz;
+      iconColor = Colors.orange;
+    } else {
+      icon = Icons.directions_bus;
+      iconColor = const Color(0xFF181111);
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
+          Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               stopName,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 color: const Color(0xFF181111),
+                fontWeight: (isStart || isEnd || isTransfer) ? FontWeight.w600 : FontWeight.normal,
               ),
               overflow: TextOverflow.ellipsis,
             ),

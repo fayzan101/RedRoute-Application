@@ -16,7 +16,7 @@ class SearchResult {
   final double longitude;
   final SearchResultType type;
   final Stop? stop; // Only for BRT stops
-  final LocationResult? location; // Only for general locations
+  final Map<String, dynamic>? location; // Only for general locations
 
   SearchResult({
     required this.name,
@@ -39,12 +39,12 @@ class SearchResult {
     );
   }
 
-  factory SearchResult.fromLocation(LocationResult location) {
+  factory SearchResult.fromLocation(Map<String, dynamic> location) {
     return SearchResult(
-      name: location.displayName,
-      subtitle: '${location.type} • ${location.address}',
-      latitude: location.latitude,
-      longitude: location.longitude,
+      name: location['name'] ?? 'Unknown Location',
+      subtitle: 'Location • ${location['name'] ?? 'Unknown'}',
+      latitude: location['latitude'] ?? 0.0,
+      longitude: location['longitude'] ?? 0.0,
       type: SearchResultType.generalLocation,
       location: location,
     );
@@ -70,150 +70,147 @@ class _DestinationSearchState extends State<DestinationSearch> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TypeAheadField<SearchResult>(
-          controller: _controller,
-          builder: (context, controller, focusNode) {
-            return TextField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                hintText: 'Search anywhere in Karachi (places, BRT stops, areas)...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _controller.clear();
-                          setState(() {
-                            _selectedDestination = null;
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TypeAheadField<SearchResult>(
+            controller: _controller,
+            builder: (context, controller, focusNode) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  hintText: 'Search anywhere in Karachi (places, BRT stops, areas)...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _controller.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _controller.clear();
+                            setState(() {
+                              _selectedDestination = null;
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-            );
-          },
-          suggestionsCallback: (pattern) async {
-            if (pattern.isEmpty) return [];
-            
-            try {
-              final List<SearchResult> results = [];
+              );
+            },
+            suggestionsCallback: (pattern) async {
+              if (pattern.isEmpty) return [];
               
-              // Search BRT stops first
               try {
-                final dataService = context.read<DataService>();
-                await dataService.loadBRTData();
-                final brtStops = dataService.searchStops(pattern);
-                results.addAll(brtStops.map((stop) => SearchResult.fromStop(stop)));
+                final List<SearchResult> results = [];
+                
+                // Search BRT stops first
+                try {
+                  final dataService = context.read<DataService>();
+                  await dataService.loadBRTData();
+                  final brtStops = dataService.searchStops(pattern);
+                  results.addAll(brtStops.map((stop) => SearchResult.fromStop(stop)));
+                } catch (e) {
+                  print('Error loading BRT stops: $e');
+                }
+                
+                // Search general Karachi locations
+                try {
+                  final locations = await GeocodingService.searchPlaces(pattern);
+                  results.addAll(locations.map((location) => SearchResult.fromLocation(location)));
+                } catch (e) {
+                  print('Error searching locations: $e');
+                  // If no results found, just continue silently
+                }
+                
+                return results;
               } catch (e) {
-                print('Error loading BRT stops: $e');
+                print('General search error: $e');
+                return [];
               }
-              
-              // Search general Karachi locations
-              try {
-                final locations = await GeocodingService.searchPlaces(pattern);
-                results.addAll(locations.map((location) => SearchResult.fromLocation(location)));
-              } catch (e) {
-                print('Error searching locations: $e');
-                // If no results found, just continue silently
-              }
-              
-              return results;
-            } catch (e) {
-              print('General search error: $e');
-              return [];
-            }
-          },
-          itemBuilder: (context, SearchResult suggestion) {
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: suggestion.type == SearchResultType.brtStop 
-                    ? Theme.of(context).primaryColor 
-                    : Colors.blue,
-                child: Icon(
+            },
+            itemBuilder: (context, SearchResult suggestion) {
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: suggestion.type == SearchResultType.brtStop 
+                      ? Theme.of(context).primaryColor 
+                      : Colors.blue,
+                  child: Icon(
+                    suggestion.type == SearchResultType.brtStop 
+                        ? Icons.directions_bus 
+                        : Icons.place,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                title: Text(suggestion.name),
+                subtitle: Text(
+                  suggestion.subtitle,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                trailing: Icon(
                   suggestion.type == SearchResultType.brtStop 
-                      ? Icons.directions_bus 
-                      : Icons.place,
-                  color: Colors.white,
-                  size: 20,
+                      ? Icons.directions_bus_filled 
+                      : Icons.location_on,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              );
+            },
+            onSelected: (SearchResult suggestion) {
+              setState(() {
+                _selectedDestination = suggestion;
+                _controller.text = suggestion.name;
+              });
+              // Automatically navigate to route when destination is selected
+              _navigateToRoute();
+            },
+            emptyBuilder: (context) => const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'No results found.\nTry searching for places, areas, or BRT stops in Karachi.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+            loadingBuilder: (context) => const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showMapPicker(),
+                  icon: const Icon(Icons.map),
+                  label: const Text('Pick on Map'),
                 ),
               ),
-              title: Text(suggestion.name),
-              subtitle: Text(
-                suggestion.subtitle,
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              trailing: Icon(
-                suggestion.type == SearchResultType.brtStop 
-                    ? Icons.directions_bus_filled 
-                    : Icons.location_on,
-                size: 16,
-                color: Colors.grey.shade400,
-              ),
-            );
-          },
-          onSelected: (SearchResult suggestion) {
-            setState(() {
-              _selectedDestination = suggestion;
-              _controller.text = suggestion.name;
-            });
-          },
-          emptyBuilder: (context) => const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'No results found.\nTry searching for places, areas, or BRT stops in Karachi.',
-              textAlign: TextAlign.center,
-            ),
+            ],
           ),
-          loadingBuilder: (context) => const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _showMapPicker(),
-                icon: const Icon(Icons.map),
-                label: const Text('Pick on Map'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _selectedDestination != null ? () => _navigateToRoute() : null,
-                icon: const Icon(Icons.directions),
-                label: const Text('Get Directions'),
-              ),
-            ),
+          
+          // Selected destination info
+          if (_selectedDestination != null) ...[
+            const SizedBox(height: 16),
+            _buildSelectedDestinationCard(),
           ],
-        ),
-        
-        // Selected destination info
-        if (_selectedDestination != null) ...[
-          const SizedBox(height: 16),
-          _buildSelectedDestinationCard(),
+          
+          // Quick destination suggestions
+          const SizedBox(height: 24),
+          _buildQuickSuggestions(),
+          const SizedBox(height: 16), // Bottom padding for better scrolling
         ],
-        
-        // Quick destination suggestions
-        const SizedBox(height: 24),
-        _buildQuickSuggestions(),
-      ],
+      ),
     );
   }
 
@@ -267,6 +264,19 @@ class _DestinationSearchState extends State<DestinationSearch> {
                 fontSize: 10,
               ),
             ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _navigateToRoute(),
+                icon: const Icon(Icons.directions),
+                label: const Text('Get Route'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -310,6 +320,8 @@ class _DestinationSearchState extends State<DestinationSearch> {
                       _selectedDestination = SearchResult.fromStop(stop);
                       _controller.text = stop.name;
                     });
+                    // Automatically navigate to route when destination is selected
+                    _navigateToRoute();
                   },
                 );
               }).toList(),
@@ -341,10 +353,15 @@ class _DestinationSearchState extends State<DestinationSearch> {
   }
 
   void _navigateToRoute() {
-    if (_selectedDestination == null) return;
+    print('_navigateToRoute called'); // Debug print
+    if (_selectedDestination == null) {
+      print('_selectedDestination is null'); // Debug print
+      return;
+    }
 
     final locationService = context.read<LocationService>();
     if (locationService.currentPosition == null) {
+      print('Location not available'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please wait for location to be detected first'),
@@ -354,6 +371,8 @@ class _DestinationSearchState extends State<DestinationSearch> {
       return;
     }
 
+    print('Navigating directly to map screen'); // Debug print
+    // Navigate directly to map screen
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => MapScreen(

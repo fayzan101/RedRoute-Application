@@ -98,10 +98,10 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) _subtitleController.forward();
     
-    // Navigate to home screen after total 3 seconds
+    // Navigate to welcome screen after total 3 seconds
     await Future.delayed(const Duration(milliseconds: 1800));
     if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed('/welcome');
     }
   }
 

@@ -1,91 +1,123 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 
 class GeocodingService {
-  static const String _baseUrl = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
-  static String get _accessToken {
-    // Try to get from environment, fallback to a working demo token
-    const envToken = String.fromEnvironment('MAPBOX_PUBLIC_KEY', defaultValue: '');
-    if (envToken.isNotEmpty) return envToken;
-    
-    // For demo purposes - replace with actual token
-    return 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
-  }
-
-  /// Search for places in Karachi using Mapbox Geocoding API
-  static Future<List<LocationResult>> searchPlaces(String query) async {
-    if (query.isEmpty || _accessToken.isEmpty) return [];
-
+  /// Get address from coordinates (reverse geocoding)
+  static Future<String?> getAddressFromCoordinates(
+    double latitude,
+    double longitude,
+  ) async {
     try {
-      final encodedQuery = Uri.encodeComponent(query);
-      final url = '$_baseUrl/$encodedQuery.json'
-          '?access_token=$_accessToken'
-          '&country=PK'
-          '&proximity=67.0011,24.8607' // Karachi center
-          '&bbox=66.6,24.4,67.8,25.3' // Karachi bounding box
-          '&limit=10';
-
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final features = data['features'] as List<dynamic>;
-
-        return features.map((feature) {
-          final geometry = feature['geometry'];
-          final coordinates = geometry['coordinates'] as List<dynamic>;
-          
-          return LocationResult(
-            name: feature['place_name'] as String,
-            displayName: feature['text'] as String,
-            latitude: coordinates[1] as double,
-            longitude: coordinates[0] as double,
-            address: feature['place_name'] as String,
-            type: _getPlaceType(feature['place_type'] as List<dynamic>),
-          );
-        }).toList();
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+      
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        return _formatAddress(place);
       }
+      return null;
     } catch (e) {
-      print('Geocoding error: $e');
+      print('Error getting address from coordinates: $e');
+      return null;
     }
-
-    return [];
   }
 
-  /// Get coordinates for a specific address
-  static Future<LocationResult?> getCoordinates(String address) async {
-    final results = await searchPlaces(address);
-    return results.isNotEmpty ? results.first : null;
+  /// Get coordinates from address (forward geocoding)
+  static Future<Position?> getCoordinatesFromAddress(String address) async {
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      
+      if (locations.isNotEmpty) {
+        Location location = locations[0];
+        return Position(
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+      }
+      return null;
+    } catch (e) {
+      print('Error getting coordinates from address: $e');
+      return null;
+    }
   }
 
-  static String _getPlaceType(List<dynamic> placeTypes) {
-    if (placeTypes.contains('poi')) return 'Point of Interest';
-    if (placeTypes.contains('address')) return 'Address';
-    if (placeTypes.contains('neighborhood')) return 'Neighborhood';
-    if (placeTypes.contains('locality')) return 'Area';
-    return 'Location';
+  /// Search for places by query string
+  static Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      
+      List<Map<String, dynamic>> results = [];
+      for (Location location in locations) {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          location.latitude,
+          location.longitude,
+        );
+        
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          results.add({
+            'name': _formatAddress(place),
+            'latitude': location.latitude,
+            'longitude': location.longitude,
+            'placemark': place,
+          });
+        }
+      }
+      
+      return results;
+    } catch (e) {
+      print('Error searching places: $e');
+      return [];
+    }
   }
-}
 
-class LocationResult {
-  final String name;
-  final String displayName;
-  final double latitude;
-  final double longitude;
-  final String address;
-  final String type;
+  /// Format address from Placemark
+  static String _formatAddress(Placemark place) {
+    List<String> addressParts = [];
+    
+    if (place.street != null && place.street!.isNotEmpty) {
+      addressParts.add(place.street!);
+    }
+    if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+      addressParts.add(place.subLocality!);
+    }
+    if (place.locality != null && place.locality!.isNotEmpty) {
+      addressParts.add(place.locality!);
+    }
+    if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+      addressParts.add(place.administrativeArea!);
+    }
+    if (place.country != null && place.country!.isNotEmpty) {
+      addressParts.add(place.country!);
+    }
+    
+    return addressParts.join(', ');
+  }
 
-  LocationResult({
-    required this.name,
-    required this.displayName,
-    required this.latitude,
-    required this.longitude,
-    required this.address,
-    required this.type,
-  });
-
-  @override
-  String toString() {
-    return 'LocationResult{name: $name, lat: $latitude, lng: $longitude}';
+  /// Get current location address
+  static Future<String?> getCurrentLocationAddress() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      return await getAddressFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+    } catch (e) {
+      print('Error getting current location address: $e');
+      return null;
+    }
   }
 }

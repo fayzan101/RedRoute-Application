@@ -43,10 +43,11 @@ class LocationService extends ChangeNotifier {
       
     } catch (e) {
       _error = e.toString();
-      // Fallback to Karachi center coordinates for demo
+      print('Location initialization error: $e');
+      // Fallback to Gadap Town coordinates instead of Karachi center
       _currentPosition = Position(
-        longitude: 67.0011,
-        latitude: 24.8607,
+        longitude: 67.1234, // Gadap Town area longitude
+        latitude: 24.9876,  // Gadap Town area latitude
         timestamp: DateTime.now(),
         accuracy: 0,
         altitude: 0,
@@ -71,20 +72,34 @@ class LocationService extends ChangeNotifier {
     _error = null;
     
     try {
+      // Try to get last known position first (faster)
+      Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
+      if (lastKnownPosition != null) {
+        print('Using last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
+        _currentPosition = lastKnownPosition;
+        _setLoading(false);
+        return;
+      }
+
+      // Get current position with better accuracy settings
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 15),
+        forceAndroidLocationManager: false, // Use Google Play Services if available
       );
       
+      print('Got current position: ${position.latitude}, ${position.longitude}');
       _currentPosition = position;
       
     } catch (e) {
       _error = 'Failed to get current location: ${e.toString()}';
-      // Use last known position or fallback
+      print('Location error: $e');
+      
+      // Use last known position or fallback to Gadap Town
       if (_currentPosition == null) {
         _currentPosition = Position(
-          longitude: 67.0011,
-          latitude: 24.8607,
+          longitude: 67.1234, // Gadap Town area longitude
+          latitude: 24.9876,  // Gadap Town area latitude
           timestamp: DateTime.now(),
           accuracy: 0,
           altitude: 0,
@@ -94,6 +109,7 @@ class LocationService extends ChangeNotifier {
           altitudeAccuracy: 0,
           headingAccuracy: 0,
         );
+        print('Using fallback coordinates for Gadap Town area');
       }
     } finally {
       _setLoading(false);

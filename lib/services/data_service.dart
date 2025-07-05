@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/stop.dart';
 import '../models/route.dart';
 
-class DataService {
+class DataService extends ChangeNotifier {
   List<Stop>? _stops;
   List<BusRoute>? _routes;
   
@@ -68,6 +69,7 @@ class DataService {
       _stops = allStops;
       _generateRoutes();
       
+      notifyListeners();
       print('Loaded ${allStops.length} BRT stops successfully');
       
     } catch (e) {

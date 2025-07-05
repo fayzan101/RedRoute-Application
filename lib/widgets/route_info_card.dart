@@ -342,12 +342,14 @@ class RouteInfoCard extends StatelessWidget {
   }
 
   int _calculateTotalTime() {
-    final walkingTime1 = DistanceCalculator.calculateWalkingTimeMinutes(journey.walkingDistanceToStart);
-    final walkingTime2 = DistanceCalculator.calculateWalkingTimeMinutes(journey.walkingDistanceFromEnd);
     final busDistance = journey.totalDistance - journey.walkingDistanceToStart - journey.walkingDistanceFromEnd;
-    final busTime = DistanceCalculator.calculateBusTimeMinutes(busDistance);
     
-    return walkingTime1 + walkingTime2 + busTime + (journey.requiresTransfer ? 5 : 0); // Add 5 min for transfer
+    return DistanceCalculator.calculateTotalJourneyTime(
+      walkingDistanceToStart: journey.walkingDistanceToStart,
+      busDistance: busDistance,
+      walkingDistanceFromEnd: journey.walkingDistanceFromEnd,
+      requiresTransfer: journey.requiresTransfer,
+    );
   }
 
   void _showRouteDetails(BuildContext context) {

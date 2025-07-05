@@ -99,77 +99,46 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   
+                  const SizedBox(height: 32),
+                  
+                  // Get Started Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacementNamed('/home');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE53E3E),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Get Started',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
                   const Spacer(),
                 ],
               ),
             ),
           ),
           
-          // Bottom navigation
-          _buildBottomNavigation(context),
+
         ],
       ),
     );
   }
 
-  Widget _buildBottomNavigation(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFFF4F0F0), width: 1),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildNavItem(
-                    icon: Icons.home,
-                    isActive: true,
-                    onTap: () {},
-                  ),
-                ),
-                Expanded(
-                  child: _buildNavItem(
-                    icon: Icons.map_outlined,
-                    isActive: false,
-                    onTap: () {},
-                  ),
-                ),
-                Expanded(
-                  child: _buildNavItem(
-                    icon: Icons.person_outline,
-                    isActive: false,
-                    onTap: () {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(height: 20, color: Colors.white), // Bottom safe area
-        ],
-      ),
-    );
-  }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Icon(
-          icon,
-          size: 24,
-          color: isActive ? const Color(0xFF181111) : const Color(0xFF886363),
-        ),
-      ),
-    );
-  }
 } 
