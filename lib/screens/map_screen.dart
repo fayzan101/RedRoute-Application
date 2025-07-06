@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -34,6 +35,17 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    // Set edge-to-edge mode to prevent navigation bar interference
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Set system UI colors to match the screen
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
     if (widget.destinationLat != null && widget.destinationLng != null) {
       _findRoute();
     }
@@ -99,68 +111,68 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: SingleChildScrollView(
         child: Column(
-          children: [
-            // Flutter Map
+        children: [
+          // Flutter Map
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.6, // Fixed height for map
-              child: _buildFlutterMap(),
+            child: _buildFlutterMap(),
+          ),
+          
+          // Route information
+          if (_isLoadingRoute)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Finding best route...'),
+                ],
+              ),
             ),
-            
-            // Route information
-            if (_isLoadingRoute)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(width: 16),
-                    Text('Finding best route...'),
-                  ],
-                ),
+          
+          if (_routeError != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
               ),
-            
-            if (_routeError != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(16.0),
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.error, color: Colors.red.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Route Error',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red.shade700,
-                          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.error, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Route Error',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade700,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_routeError!),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: _findRoute,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(_routeError!),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _findRoute,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade700,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            
-            if (_currentJourney != null)
+            ),
+          
+          if (_currentJourney != null)
               Column(
                 children: [
                   // First Card: Entire Journey Details
@@ -211,7 +223,7 @@ class _MapScreenState extends State<MapScreen> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
-                                Expanded(
+            Expanded(
                                   child: Text(
                                     'Current Location',
                                     style: const TextStyle(

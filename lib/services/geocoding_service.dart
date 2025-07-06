@@ -16,7 +16,7 @@ class GeocodingService {
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
         return _formatAddress(place);
-      }
+  }
       return null;
     } catch (e) {
       print('Error getting address from coordinates: $e');
@@ -42,7 +42,7 @@ class GeocodingService {
           speedAccuracy: 0,
           altitudeAccuracy: 0,
           headingAccuracy: 0,
-        );
+          );
       }
       return null;
     } catch (e) {
@@ -78,8 +78,8 @@ class GeocodingService {
     } catch (e) {
       print('Error searching places: $e');
       return [];
-    }
   }
+}
 
   /// Format address from Placemark
   static String _formatAddress(Placemark place) {

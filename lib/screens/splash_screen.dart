@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // import 'package:google_fonts/google_fonts.dart'; // Temporarily disabled
 
 class SplashScreen extends StatefulWidget {
@@ -23,6 +24,18 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    
+    // Set full-screen mode
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    // Set system UI colors for splash screen
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
     
     // Initialize animation controllers
     _iconController = AnimationController(
@@ -107,6 +120,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    // Restore system UI when leaving splash screen
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    
     _iconController.dispose();
     _titleController.dispose();
     _subtitleController.dispose();
@@ -117,76 +133,107 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE53E3E), // RedRoute red color
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Animated Bus Icon
-            AnimatedBuilder(
-              animation: _iconController,
-              builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(0, _iconSlideAnimation.value),
-                  child: Opacity(
-                    opacity: _iconOpacityAnimation.value,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      child: const Icon(
-                        Icons.directions_bus,
-                        size: 80,
-                        color: Colors.white,
+      body: Semantics(
+        label: 'RedRoute App Loading Screen',
+        hint: 'Karachi Bus Navigation App is starting up',
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated Bus Icon with Semantics
+              AnimatedBuilder(
+                animation: _iconController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(0, _iconSlideAnimation.value),
+                    child: Opacity(
+                      opacity: _iconOpacityAnimation.value,
+                      child: Semantics(
+                        label: 'Bus Icon',
+                        hint: 'RedRoute bus navigation icon',
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          child: const Icon(
+                            Icons.directions_bus,
+                            size: 80,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Animated Title
-            AnimatedBuilder(
-              animation: _titleController,
-              builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(0, _titleSlideAnimation.value),
-                  child: Opacity(
-                    opacity: _titleOpacityAnimation.value,
-                    child: const Text(
-                      'RedRoute',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        fontFamily: 'serif', // Using system font instead
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Animated Title with Semantics
+              AnimatedBuilder(
+                animation: _titleController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(0, _titleSlideAnimation.value),
+                    child: Opacity(
+                      opacity: _titleOpacityAnimation.value,
+                      child: Semantics(
+                        label: 'RedRoute',
+                        hint: 'App name and title',
+                        child: const Text(
+                          'RedRoute',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontFamily: 'serif', // Using system font instead
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 10),
-            
-            // Animated Subtitle
-            AnimatedBuilder(
-              animation: _subtitleController,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _subtitleOpacityAnimation.value,
-                  child: const Text(
-                    'Near your destination.',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontFamily: 'serif', // Using system font instead
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 10),
+              
+              // Animated Subtitle with Semantics
+              AnimatedBuilder(
+                animation: _subtitleController,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _subtitleOpacityAnimation.value,
+                    child: Semantics(
+                      label: 'Near your destination',
+                      hint: 'App tagline and description',
+                      child: const Text(
+                        'Near your destination.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontFamily: 'serif', // Using system font instead
+                        ),
+                      ),
                     ),
+                  );
+                },
+              ),
+              
+              // Loading indicator with Semantics
+              const SizedBox(height: 40),
+              Semantics(
+                label: 'Loading indicator',
+                hint: 'App is loading, please wait',
+                child: const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

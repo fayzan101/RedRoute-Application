@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MapSearchScreen extends StatefulWidget {
@@ -13,6 +14,22 @@ class _MapSearchScreenState extends State<MapSearchScreen> {
   final TextEditingController _mapSearchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Set edge-to-edge mode to prevent navigation bar interference
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Set system UI colors to match the screen
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -20,7 +37,7 @@ class _MapSearchScreenState extends State<MapSearchScreen> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 40, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 8),
             child: Row(
               children: [
                 GestureDetector(
@@ -197,7 +214,7 @@ class _MapSearchScreenState extends State<MapSearchScreen> {
           
           // Location button
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
             child: Align(
               alignment: Alignment.centerRight,
               child: Container(

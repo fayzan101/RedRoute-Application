@@ -37,7 +37,7 @@ class DistanceCalculator {
       return '${(distanceInMeters / 1000).toStringAsFixed(1)}km';
     }
   }
-
+  
   /// Google Maps-like walking time calculation
   /// Considers: pedestrian infrastructure, traffic lights, road crossings, time of day
   static int calculateWalkingTimeMinutes(double distanceInMeters) {

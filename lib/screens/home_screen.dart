@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
@@ -28,6 +29,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Set edge-to-edge mode to prevent navigation bar interference
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Set system UI colors to match the screen
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
     _initializeServices();
   }
 

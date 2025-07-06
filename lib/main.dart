@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -12,6 +13,18 @@ import 'services/theme_service.dart';
 import 'models/route.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set system UI mode for the entire app
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+  
   runApp(const RedRouteApp());
 }
 
@@ -46,8 +59,8 @@ class RedRouteApp extends StatelessWidget {
         },
         '/home': (context) => const HomeScreen(), // Use proper home screen with tabs
       },
-              debugShowCheckedModeBanner: false,
-      ),
+      debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }

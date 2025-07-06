@@ -1,8 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Set edge-to-edge mode for welcome screen
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Set system UI colors to match the screen
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +34,7 @@ class WelcomeScreen extends StatelessWidget {
         children: [
           // Header with bus icon and RedRoute title
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 40, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 8),
             child: Row(
               children: [
                 Container(
@@ -133,12 +155,8 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          
-
         ],
       ),
     );
   }
-
-
 } 
