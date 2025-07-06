@@ -160,7 +160,7 @@ class RouteInfoCard extends StatelessWidget {
               ),
               _buildSummaryItem(
                 icon: Icons.access_time,
-                label: 'Est. Time',
+                label: 'Total Time',
                 value: '${_calculateTotalTime()}min',
                 color: Colors.green.shade700,
               ),
@@ -344,11 +344,13 @@ class RouteInfoCard extends StatelessWidget {
   int _calculateTotalTime() {
     final busDistance = journey.totalDistance - journey.walkingDistanceToStart - journey.walkingDistanceFromEnd;
     
-    return DistanceCalculator.calculateTotalJourneyTime(
-      walkingDistanceToStart: journey.walkingDistanceToStart,
-      busDistance: busDistance,
-      walkingDistanceFromEnd: journey.walkingDistanceFromEnd,
+    // Calculate total journey time: Bykea to bus stop + bus journey + final leg to destination
+    return DistanceCalculator.calculateJourneyTimeWithBykea(
+      distanceToBusStop: journey.walkingDistanceToStart,
+      busJourneyDistance: busDistance,
+      distanceFromBusStopToDestination: journey.walkingDistanceFromEnd,
       requiresTransfer: journey.requiresTransfer,
+      departureTime: DateTime.now(),
     );
   }
 
@@ -388,7 +390,7 @@ class RouteInfoCard extends StatelessWidget {
                     _buildDetailSection('Boarding Stop', journey.startStop.name),
                     _buildDetailSection('Destination Stop', journey.endStop.name),
                     _buildDetailSection('Total Distance', DistanceCalculator.formatDistance(journey.totalDistance)),
-                    _buildDetailSection('Estimated Time', '${_calculateTotalTime()} minutes'),
+                    _buildDetailSection('Total Journey Time', '${_calculateTotalTime()} minutes (Bykea + Bus + Final Leg)'),
                     if (journey.requiresTransfer && journey.transferStop != null)
                       _buildDetailSection('Transfer Stop', journey.transferStop!.name),
                     _buildDetailSection('Available Routes', journey.routes.map((r) => r.name).join(', ')),

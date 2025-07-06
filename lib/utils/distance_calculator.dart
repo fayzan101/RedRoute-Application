@@ -100,9 +100,9 @@ class DistanceCalculator {
     // Base speeds (Google Maps standards for Karachi)
     double baseSpeedKmh;
     if (isBRT) {
-      baseSpeedKmh = 45.0; // BRT average speed (dedicated lanes, fewer stops)
+      baseSpeedKmh = 60.0; // BRT average speed (dedicated lanes, fewer stops)
     } else {
-      baseSpeedKmh = 25.0; // Regular bus average speed
+      baseSpeedKmh = 35.0; // Regular bus average speed
     }
     
     double baseSpeedMs = baseSpeedKmh * 1000 / 3600;
@@ -111,16 +111,16 @@ class DistanceCalculator {
     double trafficFactor = 1.0;
     if (hour >= 7 && hour <= 9) {
       // Morning rush hour
-      trafficFactor = isWeekend ? 1.05 : 1.15;
+      trafficFactor = isWeekend ? 1.02 : 1.08;
     } else if (hour >= 17 && hour <= 19) {
       // Evening rush hour
-      trafficFactor = isWeekend ? 1.05 : 1.15;
+      trafficFactor = isWeekend ? 1.02 : 1.08;
     } else if (hour >= 10 && hour <= 16) {
       // Mid-day: moderate traffic
-      trafficFactor = 1.08;
+      trafficFactor = 1.05;
     } else if (hour >= 20 || hour <= 6) {
       // Night: less traffic
-      trafficFactor = 0.95;
+      trafficFactor = 0.98;
     }
     
     // Distance-based adjustments
@@ -141,16 +141,16 @@ class DistanceCalculator {
     int waitingTimeMinutes = 0;
     if (isBRT) {
       // BRT has more frequent service
-      waitingTimeMinutes = 3;
+      waitingTimeMinutes = 2;
     } else {
       // Regular bus service
-      waitingTimeMinutes = 7;
+      waitingTimeMinutes = 5;
     }
     
     // Add transfer time if needed
     int transferTimeMinutes = 0;
     if (requiresTransfer) {
-      transferTimeMinutes = 8; // Google Maps standard for transfers
+      transferTimeMinutes = 5; // Google Maps standard for transfers
     }
     
     return (adjustedTimeSeconds / 60).round() + waitingTimeMinutes + transferTimeMinutes;
@@ -171,17 +171,17 @@ class DistanceCalculator {
     double baseSpeedKmh;
     switch (vehicleType.toLowerCase()) {
       case 'car':
-        baseSpeedKmh = 32.0;
+        baseSpeedKmh = 45.0;
         break;
       case 'motorcycle':
       case 'bykea':
-        baseSpeedKmh = 35.0;
+        baseSpeedKmh = 50.0;
         break;
       case 'rickshaw':
-        baseSpeedKmh = 25.0;
+        baseSpeedKmh = 35.0;
         break;
       default:
-        baseSpeedKmh = 30.0;
+        baseSpeedKmh = 40.0;
     }
     
     double baseSpeedMs = baseSpeedKmh * 1000 / 3600;
@@ -190,16 +190,16 @@ class DistanceCalculator {
     double trafficFactor = 1.0;
     if (hour >= 7 && hour <= 9) {
       // Morning rush hour
-      trafficFactor = isWeekend ? 1.2 : 1.8;
+      trafficFactor = isWeekend ? 1.1 : 1.4;
     } else if (hour >= 17 && hour <= 19) {
       // Evening rush hour
-      trafficFactor = isWeekend ? 1.2 : 1.8;
+      trafficFactor = isWeekend ? 1.1 : 1.4;
     } else if (hour >= 10 && hour <= 16) {
       // Mid-day: moderate traffic
-      trafficFactor = 1.3;
+      trafficFactor = 1.2;
     } else if (hour >= 20 || hour <= 6) {
       // Night: less traffic
-      trafficFactor = 0.8;
+      trafficFactor = 0.9;
     }
     
     // Distance-based adjustments
@@ -250,6 +250,55 @@ class DistanceCalculator {
     totalTime += 2; // 2-minute buffer for unexpected delays
     
     return totalTime;
+  }
+
+  /// Calculate total journey time including Bykea to bus stop + bus journey + final leg to destination
+  /// This is the main time calculation for the app
+  static int calculateJourneyTimeWithBykea({
+    required double distanceToBusStop,
+    required double busJourneyDistance,
+    required double distanceFromBusStopToDestination,
+    required bool requiresTransfer,
+    DateTime? departureTime,
+  }) {
+    // Bykea time to bus stop
+    final bykeaTime = calculateDrivingTimeMinutes(
+      distanceInMeters: distanceToBusStop,
+      vehicleType: 'bykea',
+      departureTime: departureTime,
+    );
+    
+    // Bus journey time
+    final busTime = calculatePublicTransportTimeMinutes(
+      distanceInMeters: busJourneyDistance,
+      isBRT: true,
+      requiresTransfer: requiresTransfer,
+      departureTime: departureTime,
+    );
+    
+    // Final leg time (walking or short ride to destination)
+    int finalLegTime;
+    if (distanceFromBusStopToDestination < 500) {
+      // Short distance: walking
+      finalLegTime = calculateWalkingTimeMinutes(distanceFromBusStopToDestination);
+    } else if (distanceFromBusStopToDestination < 2000) {
+      // Medium distance: rickshaw
+      finalLegTime = calculateDrivingTimeMinutes(
+        distanceInMeters: distanceFromBusStopToDestination,
+        vehicleType: 'rickshaw',
+        departureTime: departureTime,
+      );
+    } else {
+      // Long distance: Bykea
+      finalLegTime = calculateDrivingTimeMinutes(
+        distanceInMeters: distanceFromBusStopToDestination,
+        vehicleType: 'bykea',
+        departureTime: departureTime,
+      );
+    }
+    
+    // Total journey time: Bykea to bus + Bus journey + Final leg to destination
+    return bykeaTime + busTime + finalLegTime;
   }
 
   /// Legacy methods for backward compatibility

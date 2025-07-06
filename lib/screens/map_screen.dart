@@ -319,7 +319,7 @@ class _MapScreenState extends State<MapScreen> {
                                    ),
                                   _buildJourneyItem(
                                     icon: Icons.access_time,
-                                    label: 'Time Taken',
+                                    label: 'Total Time',
                                     value: '${_calculateTotalTime()}min',
                                     color: Colors.green,
                                   ),
@@ -337,6 +337,8 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                   ),
+                  
+                  const SizedBox(height: 16), // Gap between first and second card
                   
                   // Second Card: Location to Bus Stop
                   Card(
@@ -486,8 +488,181 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                   ),
+                  
+                  const SizedBox(height: 16), // Gap between second and third card
+                  
+                  // Third Card: Bus Stop to Destination
+                  Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: InkWell(
+                      onTap: () {
+                        _showDestinationDetails();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.place,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Bus Stop to Destination',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Destination Bus Stop Info
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.directions_bus,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Destination BRT Stop',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 28),
+                              child: Text(
+                                _currentJourney!.endStop.name,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Distance to Final Destination
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.straighten,
+                                  color: Colors.purple,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Distance to Destination',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 28),
+                              child: Text(
+                                DistanceUtils.DistanceCalculator.formatDistance(_currentJourney!.walkingDistanceFromEnd),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Suggestions
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.purple.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.lightbulb_outline,
+                                        color: Colors.purple.shade700,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Suggestions',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.purple.shade700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _getDestinationSuggestions(),
+                                    style: TextStyle(
+                                      color: Colors.purple.shade700,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
+            
+            const SizedBox(height: 24), // Gap between cards and map
+            
+            // Map Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
+              height: 300,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildFlutterMap(),
+              ),
+            ),
             
             const SizedBox(height: 32), // Bottom padding for better scrolling
           ],
@@ -671,34 +846,18 @@ class _MapScreenState extends State<MapScreen> {
   int _calculateTotalTime() {
     if (_currentJourney == null) return 0;
     
-    // Calculate total journey time from current location to destination
-    // This includes: walking to bus stop + bus journey + walking to destination
-    
-    // Walking time to bus stop
-    final walkingTimeToStart = DistanceUtils.DistanceCalculator.calculateWalkingTimeMinutes(
-      _currentJourney!.walkingDistanceToStart,
-    );
-    
-    // Calculate bus distance (total - walking distances)
+    // Calculate total journey time: Bykea to bus stop + bus journey + final leg to destination
     final busDistance = _currentJourney!.totalDistance - 
                        _currentJourney!.walkingDistanceToStart - 
                        _currentJourney!.walkingDistanceFromEnd;
     
-    // Bus journey time
-    final busTime = DistanceUtils.DistanceCalculator.calculatePublicTransportTimeMinutes(
-      distanceInMeters: busDistance,
-      isBRT: true,
+    return DistanceUtils.DistanceCalculator.calculateJourneyTimeWithBykea(
+      distanceToBusStop: _currentJourney!.walkingDistanceToStart,
+      busJourneyDistance: busDistance,
+      distanceFromBusStopToDestination: _currentJourney!.walkingDistanceFromEnd,
       requiresTransfer: _currentJourney!.requiresTransfer,
       departureTime: DateTime.now(),
     );
-    
-    // Walking time from bus stop to destination
-    final walkingTimeToEnd = DistanceUtils.DistanceCalculator.calculateWalkingTimeMinutes(
-      _currentJourney!.walkingDistanceFromEnd,
-    );
-    
-    // Total journey time
-    return walkingTimeToStart + busTime + walkingTimeToEnd;
   }
 
   String _getBusStopSuggestions() {
@@ -927,6 +1086,294 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  String _getDestinationSuggestions() {
+    if (_currentJourney == null) return '';
+    
+    final distanceToDestination = _currentJourney!.walkingDistanceFromEnd;
+    final suggestions = <String>[];
+    
+    if (distanceToDestination < 500) {
+      suggestions.add('• Short walk to your destination');
+      suggestions.add('• Enjoy the walk and save money');
+    } else if (distanceToDestination < 2000) {
+      suggestions.add('• Consider taking a rickshaw');
+      suggestions.add('• Walking will take 10-15 minutes');
+    } else {
+      suggestions.add('• Take Bykea or rickshaw to destination');
+      suggestions.add('• Walking will take 20+ minutes');
+    }
+    
+    suggestions.add('• Keep your belongings secure');
+    suggestions.add('• Follow local traffic rules');
+    
+    return suggestions.join('\n');
+  }
+
+  void _showDestinationDetails() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              Text(
+                'Destination Details',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Bus Stop to Destination
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'From Bus Stop to Destination',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              Row(
+                                children: [
+                                  Icon(Icons.directions_bus, color: Colors.red, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Get off at ${_currentJourney!.endStop.name}',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 8),
+                              
+                              Row(
+                                children: [
+                                  Icon(Icons.straighten, color: Colors.purple, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${DistanceUtils.DistanceCalculator.formatDistance(_currentJourney!.walkingDistanceFromEnd)} to destination',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 8),
+                              
+                              Row(
+                                children: [
+                                  Icon(Icons.place, color: Colors.red, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      widget.destinationName ?? 'Your destination',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Transport Options
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Transport Options',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              _buildTransportOption(
+                                icon: Icons.directions_walk,
+                                title: 'Walk',
+                                subtitle: '${_calculateWalkingTime()} min',
+                                distance: _currentJourney!.walkingDistanceFromEnd,
+                              ),
+                              
+                              const SizedBox(height: 8),
+                              
+                              _buildTransportOption(
+                                icon: Icons.directions_car,
+                                title: 'Rickshaw',
+                                subtitle: '${_calculateRickshawTime()} min',
+                                distance: _currentJourney!.walkingDistanceFromEnd,
+                              ),
+                              
+                              const SizedBox(height: 8),
+                              
+                              _buildTransportOption(
+                                icon: Icons.motorcycle,
+                                title: 'Bykea',
+                                subtitle: '${_calculateBykeaTime()} min',
+                                distance: _currentJourney!.walkingDistanceFromEnd,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Suggestions
+                      Card(
+                        color: Colors.purple.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.lightbulb_outline, color: Colors.purple.shade700),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Travel Tips',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.purple.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              Text(
+                                _getDestinationSuggestions(),
+                                style: TextStyle(
+                                  color: Colors.purple.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransportOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required double distance,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.grey.shade600, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          DistanceUtils.DistanceCalculator.formatDistance(distance),
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  int _calculateWalkingTime() {
+    if (_currentJourney == null) return 0;
+    return DistanceUtils.DistanceCalculator.calculateWalkingTimeMinutes(
+      _currentJourney!.walkingDistanceFromEnd,
+    );
+  }
+
+  int _calculateRickshawTime() {
+    if (_currentJourney == null) return 0;
+    return DistanceUtils.DistanceCalculator.calculateDrivingTimeMinutes(
+      distanceInMeters: _currentJourney!.walkingDistanceFromEnd,
+      vehicleType: 'rickshaw',
+    );
+  }
+
+  int _calculateBykeaTime() {
+    if (_currentJourney == null) return 0;
+    return DistanceUtils.DistanceCalculator.calculateDrivingTimeMinutes(
+      distanceInMeters: _currentJourney!.walkingDistanceFromEnd,
+      vehicleType: 'bykea',
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/route.dart';
+import '../utils/distance_calculator.dart';
 
 class RouteDetailsScreen extends StatelessWidget {
   final Journey? journey;
@@ -72,6 +73,26 @@ class RouteDetailsScreen extends StatelessWidget {
                       icon: Icons.directions_walk,
                       title: 'Walk to ${journey!.startStop.name}',
                       subtitle: '${(journey!.walkingDistanceToStart * 1000).round()}m walk',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.directions_bus,
+                      title: 'BRT Journey',
+                      subtitle: '${_calculateBusTime()} min • ${_calculateBusDistance()}km',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.motorcycle,
+                      title: 'Bykea to Bus Stop',
+                      subtitle: '${_calculateBykeaTime()} min • ${_calculateBykeaDistance()}km',
+                    ),
+                    _buildTransportOption(
+                      icon: _getFinalLegIcon(),
+                      title: 'Final Leg to Destination',
+                      subtitle: '${_calculateFinalLegTime()} min • ${_calculateFinalLegDistance()}km',
+                    ),
+                    _buildTransportOption(
+                      icon: Icons.access_time,
+                      title: 'Total Journey Time',
+                      subtitle: '${_calculateTotalTime()} min (Complete Journey)',
                     ),
                     _buildTransportOption(
                       icon: Icons.motorcycle,
@@ -301,5 +322,98 @@ class RouteDetailsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  int _calculateBusTime() {
+    if (journey == null) return 0;
+    
+    final busDistance = journey!.totalDistance - journey!.walkingDistanceToStart - journey!.walkingDistanceFromEnd;
+    
+    return DistanceCalculator.calculatePublicTransportTimeMinutes(
+      distanceInMeters: busDistance,
+      isBRT: true,
+      requiresTransfer: journey!.requiresTransfer,
+      departureTime: DateTime.now(),
+    );
+  }
+
+  String _calculateBusDistance() {
+    if (journey == null) return '0';
+    
+    final busDistance = journey!.totalDistance - journey!.walkingDistanceToStart - journey!.walkingDistanceFromEnd;
+    return (busDistance / 1000).toStringAsFixed(1);
+  }
+
+  int _calculateTotalTime() {
+    if (journey == null) return 0;
+    
+    final busDistance = journey!.totalDistance - journey!.walkingDistanceToStart - journey!.walkingDistanceFromEnd;
+    
+    return DistanceCalculator.calculateJourneyTimeWithBykea(
+      distanceToBusStop: journey!.walkingDistanceToStart,
+      busJourneyDistance: busDistance,
+      distanceFromBusStopToDestination: journey!.walkingDistanceFromEnd,
+      requiresTransfer: journey!.requiresTransfer,
+      departureTime: DateTime.now(),
+    );
+  }
+
+  int _calculateBykeaTime() {
+    if (journey == null) return 0;
+    
+    return DistanceCalculator.calculateDrivingTimeMinutes(
+      distanceInMeters: journey!.walkingDistanceToStart,
+      vehicleType: 'bykea',
+      departureTime: DateTime.now(),
+    );
+  }
+
+  String _calculateBykeaDistance() {
+    if (journey == null) return '0';
+    return (journey!.walkingDistanceToStart / 1000).toStringAsFixed(1);
+  }
+
+  int _calculateFinalLegTime() {
+    if (journey == null) return 0;
+    
+    final distance = journey!.walkingDistanceFromEnd;
+    
+    if (distance < 500) {
+      // Short distance: walking
+      return DistanceCalculator.calculateWalkingTimeMinutes(distance);
+    } else if (distance < 2000) {
+      // Medium distance: rickshaw
+      return DistanceCalculator.calculateDrivingTimeMinutes(
+        distanceInMeters: distance,
+        vehicleType: 'rickshaw',
+        departureTime: DateTime.now(),
+      );
+    } else {
+      // Long distance: Bykea
+      return DistanceCalculator.calculateDrivingTimeMinutes(
+        distanceInMeters: distance,
+        vehicleType: 'bykea',
+        departureTime: DateTime.now(),
+      );
+    }
+  }
+
+  String _calculateFinalLegDistance() {
+    if (journey == null) return '0';
+    return (journey!.walkingDistanceFromEnd / 1000).toStringAsFixed(1);
+  }
+
+  IconData _getFinalLegIcon() {
+    if (journey == null) return Icons.directions_walk;
+    
+    final distance = journey!.walkingDistanceFromEnd;
+    
+    if (distance < 500) {
+      return Icons.directions_walk;
+    } else if (distance < 2000) {
+      return Icons.directions_car;
+    } else {
+      return Icons.motorcycle;
+    }
   }
 } 

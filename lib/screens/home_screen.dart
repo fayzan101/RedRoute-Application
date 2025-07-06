@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
 import '../services/data_service.dart';
+import '../services/theme_service.dart';
 import '../widgets/destination_search.dart';
 import 'map_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -409,87 +411,6 @@ class SettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.location_on),
-                  title: const Text('Location Services'),
-                  subtitle: const Text('Manage location permissions'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Handle location settings
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.notifications),
-                  title: const Text('Notifications'),
-                  subtitle: const Text('Manage app notifications'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Handle notification settings
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.language),
-                  title: const Text('Language'),
-                  subtitle: const Text('English'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Handle language settings
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('About'),
-                  subtitle: const Text('App version and information'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Show about dialog
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'RedRoute',
-                      applicationVersion: '1.0.0',
-                      applicationIcon: const Icon(Icons.directions_bus),
-                      children: const [
-                        Text('Karachi Bus Navigation App'),
-                        SizedBox(height: 8),
-                        Text('Find the best BRT routes in Karachi'),
-                      ],
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: const Text('Help & Support'),
-                  subtitle: const Text('Get help and contact support'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Handle help and support
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsScreen();
   }
 }

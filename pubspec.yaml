@@ -17,6 +17,7 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   google_fonts: ^6.1.0
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

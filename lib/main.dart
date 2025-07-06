@@ -8,6 +8,7 @@ import 'screens/route_details_screen.dart';
 import 'services/location_service.dart';
 import 'services/data_service.dart';
 import 'services/route_finder.dart';
+import 'services/theme_service.dart';
 import 'models/route.dart';
 
 void main() {
@@ -23,37 +24,17 @@ class RedRouteApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => LocationService()),
         ChangeNotifierProvider(create: (_) => DataService()),
+        ChangeNotifierProvider(create: (_) => ThemeService()),
         ChangeNotifierProxyProvider<DataService, RouteFinder>(
           create: (context) => RouteFinder(context.read<DataService>()),
           update: (context, dataService, previous) => 
             previous ?? RouteFinder(dataService),
         ),
       ],
-      child: MaterialApp(
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, child) => MaterialApp(
         title: 'RedRoute - Karachi Bus Navigation',
-        theme: ThemeData(
-        primarySwatch: Colors.red,
-        primaryColor: const Color(0xFFE53E3E),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFE53E3E),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFE53E3E),
-          foregroundColor: Colors.white,
-          elevation: 2,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFE53E3E),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ),
+        theme: themeService.currentTheme,
       // Simplified routing for testing
       home: const SplashScreen(),
       routes: {
@@ -65,7 +46,8 @@ class RedRouteApp extends StatelessWidget {
         },
         '/home': (context) => const HomeScreen(), // Use proper home screen with tabs
       },
-      debugShowCheckedModeBanner: false,
+              debugShowCheckedModeBanner: false,
+      ),
       ),
     );
   }
