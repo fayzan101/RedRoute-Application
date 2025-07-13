@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 import '../services/enhanced_location_service.dart';
+import '../services/transport_preference_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,16 +18,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    // Set edge-to-edge mode to prevent navigation bar interference
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _loadTransportPreference();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // Or your custom color
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
+  }
+
   Future<void> _loadTransportPreference() async {
-    // Load saved transport preference from SharedPreferences
-    // For now, using default value
+    final preference = await TransportPreferenceService.getTransportPreference();
+    setState(() {
+      _selectedTransportPreference = preference;
+    });
   }
 
   Future<void> _saveTransportPreference(String preference) async {
-    // Save transport preference to SharedPreferences
+    await TransportPreferenceService.setTransportPreference(preference);
     setState(() {
       _selectedTransportPreference = preference;
     });

@@ -8,6 +8,8 @@ class MapboxService {
   /// Search for places using Mapbox Geocoding API
   static Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
     try {
+      print('🔍 MapboxService: Searching for "$query"');
+      
       // Focus search on Karachi, Pakistan
       const String karachiBbox = '66.8,24.7,67.4,25.2'; // Karachi bounding box
       const String country = 'pk'; // Pakistan country code
@@ -39,11 +41,17 @@ class MapboxService {
             'autocomplete': 'true',
           });
 
+          print('🌐 MapboxService: Making request to ${uri.toString().replaceAll(_accessToken, '***')}');
+          
           final response = await http.get(uri);
+          
+          print('📡 MapboxService: Response status: ${response.statusCode}');
           
           if (response.statusCode == 200) {
             final Map<String, dynamic> data = json.decode(response.body);
             final List<dynamic> features = data['features'] ?? [];
+            
+            print('📍 MapboxService: Found ${features.length} features for "$searchQuery"');
             
             final results = features.map<Map<String, dynamic>>((feature) {
               final Map<String, dynamic> properties = feature['properties'] ?? {};
@@ -63,12 +71,16 @@ class MapboxService {
             }).toList();
             
             allResults.addAll(results);
+          } else {
+            print('❌ MapboxService: HTTP Error ${response.statusCode}: ${response.body}');
           }
         } catch (e) {
-          print('Error with search variation "$searchQuery": $e');
+          print('❌ MapboxService: Error with search variation "$searchQuery": $e');
           continue;
         }
       }
+      
+      print('📊 MapboxService: Total results before deduplication: ${allResults.length}');
       
       // Remove duplicates and sort by relevance
       final Map<String, Map<String, dynamic>> uniqueResults = {};
@@ -83,9 +95,14 @@ class MapboxService {
       final sortedResults = uniqueResults.values.toList();
       sortedResults.sort((a, b) => (b['relevance'] ?? 0.0).compareTo(a['relevance'] ?? 0.0));
       
+      print('✅ MapboxService: Returning ${sortedResults.length} unique results');
+      for (final result in sortedResults.take(3)) {
+        print('   - ${result['name']} (${result['relevance']})');
+      }
+      
       return sortedResults;
     } catch (e) {
-      print('Error searching places with Mapbox: $e');
+      print('❌ MapboxService: General error searching places: $e');
       return [];
     }
   }
@@ -571,5 +588,35 @@ class MapboxService {
     if (duration < 600) return 'Low';
     if (duration < 1200) return 'Medium';
     return 'High';
+  }
+
+  /// Test method to check if Mapbox service is working
+  static Future<bool> testConnection() async {
+    try {
+      print('🧪 MapboxService: Testing connection...');
+      
+      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/Karachi.json')
+          .replace(queryParameters: {
+        'access_token': _accessToken,
+        'limit': '1',
+      });
+
+      final response = await http.get(uri);
+      
+      print('🧪 MapboxService: Test response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final features = data['features'] ?? [];
+        print('🧪 MapboxService: Test successful - found ${features.length} features');
+        return true;
+      } else {
+        print('🧪 MapboxService: Test failed - HTTP ${response.statusCode}: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('🧪 MapboxService: Test failed with error: $e');
+      return false;
+    }
   }
 } 

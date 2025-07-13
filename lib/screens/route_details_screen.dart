@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/route.dart';
@@ -7,7 +10,9 @@ import '../utils/distance_calculator.dart';
 import '../services/mapbox_service.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/route_finder.dart';
+import '../services/transport_preference_service.dart';
 import '../screens/map_screen.dart';
+import '../screens/bus_route_details_screen.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
   final Journey? journey;
@@ -32,9 +37,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   bool isLoading = true;
   Journey? _foundJourney;
 
-  @override
+    @override
   void initState() {
     super.initState();
+    // Set edge-to-edge mode to prevent navigation bar interference
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    
     if (widget.journey != null) {
       _loadJourneyDetails();
     } else if (widget.destinationLat != null && widget.destinationLng != null) {
@@ -42,9 +50,44 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // Or your custom color
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
+  }
+
   Future<void> _findRoute() async {
-    final locationService = context.read<EnhancedLocationService>();
-    final routeFinder = context.read<RouteFinder>();
+    // Safely access providers with error handling
+    EnhancedLocationService? locationService;
+    RouteFinder? routeFinder;
+    
+    try {
+      locationService = context.read<EnhancedLocationService>();
+      routeFinder = context.read<RouteFinder>();
+    } catch (e) {
+      print('Provider not found: $e');
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Service not available. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     
     final userPosition = locationService.currentPosition;
     if (userPosition == null) {
@@ -65,11 +108,17 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     });
 
     try {
+      // Add timeout to prevent infinite loading
       final journey = await routeFinder.findBestRoute(
         userLat: userPosition.latitude,
         userLng: userPosition.longitude,
         destLat: widget.destinationLat!,
         destLng: widget.destinationLng!,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Route finding timed out. Please try again.');
+        },
       );
 
       if (journey != null) {
@@ -88,6 +137,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           ),
         );
       }
+    } on TimeoutException catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${e.message}'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _findRoute(),
+            textColor: Colors.white,
+          ),
+        ),
+      );
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -96,6 +160,11 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         SnackBar(
           content: Text('Error finding route: $e'),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _findRoute(),
+            textColor: Colors.white,
+          ),
         ),
       );
     }
@@ -147,13 +216,63 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Ensure providers are available
+    try {
+      context.read<EnhancedLocationService>();
+      context.read<RouteFinder>();
+    } catch (e) {
+      // If providers are not available, show error screen
+      return Scaffold(
+        backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: isDark ? Colors.white : Colors.red,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Service Unavailable',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please try again or restart the app',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
+      backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+      body: SafeArea(
+        child: Column(
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 40, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
                 GestureDetector(
@@ -161,9 +280,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                   child: Container(
                     width: 48,
                     height: 48,
-                    child: const Icon(
+                      child: Icon(
                       Icons.arrow_back,
-                      color: Color(0xFF181111),
+                        color: isDark ? Colors.white : const Color(0xFF181111),
                       size: 24,
                     ),
                   ),
@@ -175,7 +294,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF181111),
+                        color: isDark ? Colors.white : const Color(0xFF181111),
                       letterSpacing: -0.015,
                     ),
                   ),
@@ -185,54 +304,142 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
           ),
           
+          // Loading indicator or content
           Expanded(
-            child: SingleChildScrollView(
+            child: isLoading 
+                ? _buildLoadingIndicator()
+                : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // View on Map Button
-                  _buildViewOnMapButton(),
-                  
-                  // Three Journey Cards
-                  if (widget.journey != null || _foundJourney != null) ...[
-                    _buildOverallJourneyCard(),
-                    _buildCurrentToBusStopCard(),
-                    _buildBusStopToDestinationCard(),
-                  ] else ...[
-                    _buildOverallJourneyCard(),
-                    _buildCurrentToBusStopCard(),
-                    _buildBusStopToDestinationCard(),
-                  ],
-                  
-                  // Bus Route section
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text(
-                      'Bus Route',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF181111),
-                        letterSpacing: -0.015,
+                        // View on Map Button
+                        _buildViewOnMapButton(),
+                        
+                        // Three Journey Cards
+                        if (widget.journey != null || _foundJourney != null) ...[
+                          _buildOverallJourneyCard(),
+                          _buildCurrentToBusStopCard(),
+                          _buildBusStopToDestinationCard(),
+                        ] else ...[
+                          _buildOverallJourneyCard(),
+                          _buildCurrentToBusStopCard(),
+                          _buildBusStopToDestinationCard(),
+                        ],
+                        
+                        // Action Buttons
+                        if (widget.journey != null || _foundJourney != null) ...[
+                          const SizedBox(height: 16),
+                          _buildActionButtons(),
+                        ],
+                      ],
                       ),
                     ),
                   ),
                   
-                  // Bus stops list
-                  ..._buildStopsList(),
-                ],
+
+          
+          Container(height: 20, color: isDark ? Colors.grey.shade900 : Colors.white),
+        ],
+      ), // Close Column
+    ), // Close SafeArea
+  ); // Close Scaffold
+  }
+
+  Journey? get _currentJourney => widget.journey ?? _foundJourney;
+
+  Widget _buildLoadingIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Animated loading indicator
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE92929).withOpacity(isDark ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(40),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE92929)),
+                strokeWidth: 3,
               ),
             ),
           ),
+          const SizedBox(height: 24),
           
-          // Fare estimate button
+          // Loading text
+          Text(
+            'Finding Best Route...',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF181111),
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Subtitle
+          Text(
+            'Analyzing BRT routes and calculating journey time',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          
+          // Progress steps
           Container(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () => _showFareDetails(),
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade200,
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildLoadingStep(
+                  icon: Icons.location_on,
+                  title: 'Getting your location',
+                  isCompleted: true,
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 12),
+                _buildLoadingStep(
+                  icon: Icons.search,
+                  title: 'Finding nearest BRT stops',
+                  isCompleted: isLoading && _foundJourney != null,
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 12),
+                _buildLoadingStep(
+                  icon: Icons.route,
+                  title: 'Calculating optimal route',
+                  isCompleted: !isLoading && _foundJourney != null,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Retry button (appears after 10 seconds)
+          FutureBuilder(
+            future: Future.delayed(const Duration(seconds: 10)),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                return ElevatedButton.icon(
+                  onPressed: () => _findRoute(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFE92929),
                   foregroundColor: Colors.white,
@@ -240,29 +447,61 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: Text(
-                  'Fare Estimate: PKR 50',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.015,
-                  ),
-                ),
-              ),
-            ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
-          
-          Container(height: 20, color: Colors.white),
         ],
       ),
     );
   }
 
-  Journey? get _currentJourney => widget.journey ?? _foundJourney;
+  Widget _buildLoadingStep({
+    required IconData icon,
+    required String title,
+    required bool isCompleted,
+    required bool isDark,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: isCompleted 
+                ? const Color(0xFFE92929) 
+                : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            isCompleted ? Icons.check : icon,
+            color: isCompleted 
+                ? Colors.white 
+                : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: isCompleted ? FontWeight.w600 : FontWeight.normal,
+              color: isCompleted 
+                  ? (isDark ? Colors.white : const Color(0xFF181111))
+                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildViewOnMapButton() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: SizedBox(
         width: double.infinity,
         height: 56,
@@ -277,9 +516,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     destinationLng: _currentJourney!.endStop.lng,
                     destinationName: _currentJourney!.endStop.name,
                   ),
-                ),
-              );
-            }
+        ),
+      );
+    }
           },
           icon: const Icon(Icons.map, color: Colors.white),
           label: Text(
@@ -293,7 +532,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFE92929),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12),
             ),
             elevation: 4,
             shadowColor: const Color(0xFFE92929).withOpacity(0.3),
@@ -304,16 +543,22 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   }
 
   Widget _buildOverallJourneyCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: isDark ? Colors.grey.shade800 : const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade600 : Colors.grey[300]!,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: isDark 
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -342,7 +587,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF181111),
+                  color: isDark ? Colors.white : const Color(0xFF181111),
                 ),
               ),
             ],
@@ -370,20 +615,20 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
                 child: _buildJourneyMetric(
-                  icon: Icons.directions_walk,
-                  title: 'Walking',
+                    icon: Icons.directions_walk,
+                    title: 'Walking',
                   value: _currentJourney != null 
                       ? '${((_currentJourney!.walkingDistanceToStart + _currentJourney!.walkingDistanceFromEnd) / 1000).toStringAsFixed(1)} km'
                       : '0.0 km',
                   color: const Color(0xFF2196F3),
+                  ),
                 ),
-              ),
-              Expanded(
+                Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.directions_bus,
                   title: 'Bus Journey',
@@ -391,18 +636,20 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       ? '${(_calculateBusDistanceInMeters() / 1000).toStringAsFixed(1)} km'
                       : '0.0 km',
                   color: const Color(0xFFFF9800),
+                  ),
                 ),
-              ),
-            ],
+              ],
           ),
           if (journeyDetails != null && journeyDetails!['trafficInfo'] != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: isDark ? Colors.orange.shade900 : Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
+                border: Border.all(
+                  color: isDark ? Colors.orange.shade700 : Colors.orange.shade200,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -431,16 +678,22 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   }
 
   Widget _buildCurrentToBusStopCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: isDark ? Colors.blue.shade900 : Colors.blue.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(
+          color: isDark ? Colors.blue.shade600 : Colors.blue.shade200,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.05),
+            color: isDark 
+                ? Colors.blue.withOpacity(0.3)
+                : Colors.blue.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -448,7 +701,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      children: [
           Row(
             children: [
               Container(
@@ -464,15 +717,15 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
+        Text(
                 'Current Location → Bus Stop',
-                style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF181111),
-                ),
-              ),
-            ],
+            fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF181111),
+          ),
+        ),
+      ],
           ),
           const SizedBox(height: 16),
           Row(
@@ -523,12 +776,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
+                      Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.blue.shade800 : Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -563,16 +816,22 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   }
 
   Widget _buildBusStopToDestinationCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: isDark ? Colors.green.shade900 : Colors.green.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(
+          color: isDark ? Colors.green.shade600 : Colors.green.shade200,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.05),
+            color: isDark 
+                ? Colors.green.withOpacity(0.3)
+                : Colors.green.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -582,13 +841,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              Container(
+          children: [
+            Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
+              decoration: BoxDecoration(
                   color: Colors.green.shade600,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
                 child: const Icon(
                   Icons.directions_bus,
                   color: Colors.white,
@@ -601,7 +860,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF181111),
+                  color: isDark ? Colors.white : const Color(0xFF181111),
                 ),
               ),
             ],
@@ -609,7 +868,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
+            Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.access_time,
                   title: 'Bus Time',
@@ -649,15 +908,15 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.green.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                      Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.green.shade800 : Colors.green.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Row(
                   children: [
                     Icon(
@@ -688,12 +947,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     );
   }
 
-  Widget _buildJourneyMetric({
+    Widget _buildJourneyMetric({
     required IconData icon,
     required String title,
     required String value,
     required Color color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       children: [
         Icon(icon, color: color, size: 20),
@@ -702,7 +963,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           title,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12,
-            color: const Color(0xFF886363),
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF886363),
             fontWeight: FontWeight.w500,
           ),
           textAlign: TextAlign.center,
@@ -715,7 +976,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF181111),
+            color: isDark ? Colors.white : const Color(0xFF181111),
           ),
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
@@ -760,6 +1021,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   }
 
   Widget _buildStopItem(String stopName, {bool isStart = false, bool isEnd = false, bool isTransfer = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     IconData icon;
     Color iconColor;
     
@@ -774,7 +1037,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       iconColor = Colors.orange;
     } else {
       icon = Icons.directions_bus;
-      iconColor = const Color(0xFF181111);
+      iconColor = isDark ? Colors.white : const Color(0xFF181111);
     }
     
     return Container(
@@ -792,7 +1055,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               stopName,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
-                color: const Color(0xFF181111),
+                color: isDark ? Colors.white : const Color(0xFF181111),
                 fontWeight: (isStart || isEnd || isTransfer) ? FontWeight.w600 : FontWeight.normal,
               ),
               overflow: TextOverflow.ellipsis,
@@ -906,6 +1169,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   }
 
   Widget _buildTransportSuggestions(double distance, String type) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final List<Widget> suggestions = [];
     
     // Walking suggestion (always available)
@@ -914,20 +1178,20 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? Colors.grey.shade800 : Colors.white,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.directions_walk, size: 14, color: Colors.grey.shade600),
+            Icon(Icons.directions_walk, size: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
             const SizedBox(width: 4),
             Text(
               'Walk ${(distance / 1000).toStringAsFixed(1)}km (${walkingTime}min)',
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey.shade700,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -936,7 +1200,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       ),
     );
     
-    // Rickshaw suggestion (for medium distances)
+        // Rickshaw suggestion (for medium distances)
     if (distance >= 500 && distance < 2000) {
       final rickshawTime = DistanceCalculator.calculateDrivingTimeMinutes(
         distanceInMeters: distance,
@@ -947,9 +1211,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Colors.grey.shade800 : Colors.white,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -960,7 +1224,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 'Rickshaw (${rickshawTime}min)',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade700,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -981,9 +1245,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Colors.grey.shade800 : Colors.white,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -994,7 +1258,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 'Bykea (${bykeaTime}min)',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade700,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1003,7 +1267,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         ),
       );
     }
-    
+
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -1011,34 +1275,303 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     );
   }
 
-  void _showFareDetails() {
-    if (_currentJourney == null) return;
-    _showFareDialog();
-  }
 
-  void _showFareDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Fare Estimate'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('BRT Fare: PKR 50'),
-            Text('Bykea (if needed): PKR 30-50'),
-            Text('Rickshaw (if needed): PKR 40-60'),
-            const SizedBox(height: 8),
-            const Text('Total Estimated: PKR 50-110', style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+
+  Widget _buildActionButtons() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Detail Bus Route Button
+          Expanded(
+            child: Container(
+              height: 48,
+              margin: const EdgeInsets.only(right: 8),
+              child: ElevatedButton.icon(
+                onPressed: () => _showBusRouteDetails(),
+                icon: const Icon(Icons.directions_bus, color: Colors.white, size: 20),
+                label: Text(
+                  'Detail Bus Route',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2196F3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+          ),
+          
+          // Estimate Fare Button
+          Expanded(
+            child: Container(
+              height: 48,
+              margin: const EdgeInsets.only(left: 8),
+              child: ElevatedButton.icon(
+                onPressed: () => _showFareDialog(),
+                icon: const Icon(Icons.attach_money, color: Colors.white, size: 20),
+                label: Text(
+                  'Estimate Fare',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
-}
+
+  void _showBusRouteDetails() {
+    if (_currentJourney == null || _currentJourney!.routes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No route information available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Navigate to bus route details screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BusRouteDetailsScreen(
+          routeName: _currentJourney!.routes.first.name,
+        ),
+      ),
+    );
+  }
+
+  void _showFareDialog() async {
+    if (_currentJourney == null) return;
+    
+    // Show loading dialog first
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Calculating fare...'),
+          ],
+        ),
+      ),
+    );
+    
+    final fareDetails = await _calculateFareDetails();
+    
+    // Close loading dialog
+    Navigator.pop(context);
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 320),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              // Title
+              Row(
+                children: [
+                  Icon(Icons.attach_money, color: const Color(0xFF4CAF50), size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Fare Estimate',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              
+              // Fare items
+              _buildFareItem('BRT Bus', 'PKR 50', Icons.directions_bus, Colors.blue),
+              const SizedBox(height: 12),
+              if ((fareDetails['bykeaFare'] ?? 0) > 0) ...[
+                _buildFareItem('Bykea', 'PKR ${fareDetails['bykeaFare']}', Icons.motorcycle, Colors.orange),
+                const SizedBox(height: 12),
+              ],
+              if ((fareDetails['rickshawFare'] ?? 0) > 0) ...[
+                _buildFareItem('Rickshaw', 'PKR ${fareDetails['rickshawFare']}', Icons.motorcycle, Colors.green),
+                const SizedBox(height: 12),
+              ],
+              
+              const Divider(height: 24),
+              
+              // Total
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calculate, color: const Color(0xFF4CAF50), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Total Estimated: PKR ${fareDetails['totalFare']}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF4CAF50),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Note
+              Text(
+                'Note: Fares may vary based on traffic and demand',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Close button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+            onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50).withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Close',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF4CAF50),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFareItem(String title, String amount, IconData icon, Color color) {
+    return Row(
+          children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Text(
+          amount,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<Map<String, int>> _calculateFareDetails() async {
+    if (_currentJourney == null) {
+      return {'totalFare': 0, 'bykeaFare': 0, 'rickshawFare': 0};
+    }
+    
+    int totalFare = 50; // Base BRT fare
+    int bykeaFare = 0;
+    int rickshawFare = 0;
+    
+    // Get user's transport preference
+    final userPreference = await TransportPreferenceService.getTransportPreference();
+    
+    // Calculate fare for getting to bus stop (if needed)
+    final distanceToBusStop = _currentJourney!.walkingDistanceToStart;
+    if (distanceToBusStop > 1000) { // If more than 1km, suggest transport
+      final transportDistance = distanceToBusStop / 1000; // Convert to km
+      
+      if (userPreference == 'Bykea') {
+        bykeaFare = TransportPreferenceService.calculateFare('Bykea', transportDistance).round();
+        totalFare += bykeaFare;
+      } else if (userPreference == 'Rickshaw') {
+        rickshawFare = TransportPreferenceService.calculateFare('Rickshaw', transportDistance).round();
+        totalFare += rickshawFare;
+      }
+      // If preference is 'Walk', no additional fare
+    }
+    
+    // Calculate fare for getting from bus stop to destination
+    final distanceFromBusStop = _currentJourney!.walkingDistanceFromEnd;
+    if (distanceFromBusStop > 1000) { // If more than 1km, suggest transport
+      final transportDistance = distanceFromBusStop / 1000; // Convert to km
+      
+      if (userPreference == 'Bykea') {
+        final additionalFare = TransportPreferenceService.calculateFare('Bykea', transportDistance).round();
+        bykeaFare += additionalFare;
+        totalFare += additionalFare;
+      } else if (userPreference == 'Rickshaw') {
+        final additionalFare = TransportPreferenceService.calculateFare('Rickshaw', transportDistance).round();
+        rickshawFare += additionalFare;
+        totalFare += additionalFare;
+      }
+      // If preference is 'Walk', no additional fare
+    }
+    
+    return {
+      'totalFare': totalFare,
+      'bykeaFare': bykeaFare,
+      'rickshawFare': rickshawFare,
+    };
+  }
+} 

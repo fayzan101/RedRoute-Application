@@ -28,14 +28,14 @@ class _SplashScreenState extends State<SplashScreen>
     // Set full-screen mode
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     // Set system UI colors for splash screen
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-    );
+   SystemChrome.setSystemUIOverlayStyle(
+  const SystemUiOverlayStyle(
+    statusBarColor: Color(0xFFE53E3E),         // Match splash background
+    statusBarIconBrightness: Brightness.light, // White icons
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ),
+);
     
     // Initialize animation controllers
     _iconController = AnimationController(

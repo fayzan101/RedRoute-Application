@@ -239,9 +239,9 @@ class _MapScreenState extends State<MapScreen> {
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: LatLng(
-                  widget.destinationLat ?? 24.8607,
-                  widget.destinationLng ?? 67.0011,
-                ),
+                        widget.destinationLat ?? 24.8607,
+                        widget.destinationLng ?? 67.0011,
+                      ),
                 initialZoom: 13,
                 onMapReady: () {
                   setState(() {
@@ -293,7 +293,7 @@ class _MapScreenState extends State<MapScreen> {
                     ],
                   ),
                 ),
-              ),
+            ),
           ],
         ),
       ),
@@ -442,9 +442,9 @@ class _MapScreenState extends State<MapScreen> {
 
   void _addMarkersToMap() {
     final List<Marker> markers = [];
-    
-    // Add destination marker
-    if (widget.destinationLat != null && widget.destinationLng != null) {
+      
+      // Add destination marker
+      if (widget.destinationLat != null && widget.destinationLng != null) {
       markers.add(
         Marker(
           point: LatLng(widget.destinationLat!, widget.destinationLng!),
@@ -494,19 +494,19 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-        ),
-      );
-    }
-    
-    // Add journey markers if available
-    if (_currentJourney != null) {
+          ),
+        );
+      }
+      
+      // Add journey markers if available
+      if (_currentJourney != null) {
       // Start stop marker
       markers.add(
         Marker(
           point: LatLng(
-            _currentJourney!.startStop.lat,
-            _currentJourney!.startStop.lng,
-          ),
+              _currentJourney!.startStop.lat,
+              _currentJourney!.startStop.lng,
+            ),
           width: 80,
           height: 80,
           child: Column(
@@ -560,9 +560,9 @@ class _MapScreenState extends State<MapScreen> {
       markers.add(
         Marker(
           point: LatLng(
-            _currentJourney!.endStop.lat,
-            _currentJourney!.endStop.lng,
-          ),
+              _currentJourney!.endStop.lat,
+              _currentJourney!.endStop.lng,
+            ),
           width: 80,
           height: 80,
           child: Column(
@@ -625,7 +625,7 @@ class _MapScreenState extends State<MapScreen> {
       
       if (position != null && _mapController != null) {
         _mapController!.move(
-          LatLng(position.latitude, position.longitude),
+            LatLng(position.latitude, position.longitude),
           15,
         );
       }

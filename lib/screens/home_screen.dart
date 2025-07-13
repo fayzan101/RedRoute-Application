@@ -31,16 +31,24 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Set edge-to-edge mode to prevent navigation bar interference
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Set system UI colors to match the screen
+    _initializeServices();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // Or your custom color
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
       ),
     );
-    _initializeServices();
   }
 
   Future<void> _initializeServices() async {
@@ -265,9 +273,14 @@ class HomeTab extends StatelessWidget {
                                 ),
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Text(
+                                    return Text(
                                       'Getting address...',
-                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                      style: TextStyle(
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey,
+                                        fontSize: 12
+                                      ),
                                     );
                                   }
                                   if (snapshot.hasData && snapshot.data != null) {
@@ -276,28 +289,47 @@ class HomeTab extends StatelessWidget {
                                       children: [
                                         Text(
                                           snapshot.data!,
-                                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                          style: TextStyle(
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey,
+                                            fontSize: 12
+                                          ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           'Accuracy: ${position.accuracy.toStringAsFixed(1)}m',
-                                          style: const TextStyle(color: Colors.blue, fontSize: 10),
+                                          style: TextStyle(
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.blue.shade300
+                                              : Colors.blue,
+                                            fontSize: 10
+                                          ),
                                         ),
                                       ],
                                     );
                                   }
-                                  return const Text(
+                                  return Text(
                                     'Address not available',
-                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey,
+                                      fontSize: 12
+                                    ),
                                   );
                                 },
                               ),
                             ],
                           );
                         }
-                        return const Text(
+                        return Text(
                           'Location not available',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade400
+                              : Colors.grey,
+                          ),
                         );
                       },
                     ),
@@ -310,7 +342,9 @@ class HomeTab extends StatelessWidget {
             
             // Information Card
             Card(
-              color: Colors.blue.shade50,
+              color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.blue.shade900.withOpacity(0.3)
+                : Colors.blue.shade50,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -320,23 +354,32 @@ class HomeTab extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.info_outline,
-                          color: Colors.blue.shade700,
+                          color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.blue.shade300
+                            : Colors.blue.shade700,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'How it works',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.blue.shade700,
+                            color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.blue.shade300
+                              : Colors.blue.shade700,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '1. Enter your destination\n'
                       '2. We\'ll find the nearest BRT stop\n'
                       '3. Get step-by-step directions\n'
                       '4. Choose walking, rickshaw, or ride-hailing',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade700,
+                      ),
                     ),
                   ],
                 ),

@@ -5,6 +5,7 @@ import '../services/data_service.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/mapbox_service.dart';
 import '../services/recent_searches_service.dart';
+import '../services/route_finder.dart';
 import '../models/stop.dart';
 import '../screens/map_screen.dart';
 import '../screens/route_details_screen.dart';
@@ -98,6 +99,13 @@ class _DestinationSearchState extends State<DestinationSearch> {
   void initState() {
     super.initState();
     _loadRecentSearches();
+    _testMapboxConnection();
+  }
+
+  Future<void> _testMapboxConnection() async {
+    print('🧪 DestinationSearch: Testing Mapbox connection...');
+    final isWorking = await MapboxService.testConnection();
+    print('🧪 DestinationSearch: Mapbox connection test result: $isWorking');
   }
 
   @override
@@ -133,12 +141,32 @@ class _DestinationSearchState extends State<DestinationSearch> {
                 return TextField(
                   controller: controller,
                   focusNode: focusNode,
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Colors.black,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search all locations in Karachi (places, areas, BRT stops)...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.grey.shade400 
+                          : Colors.grey.shade600,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.grey.shade400 
+                          : Colors.grey.shade600,
+                    ),
                     suffixIcon: _controller.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
+                            icon: Icon(
+                              Icons.clear,
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey.shade400 
+                                  : Colors.grey.shade600,
+                            ),
                             onPressed: () {
                               _controller.clear();
                               setState(() {
@@ -149,9 +177,31 @@ class _DestinationSearchState extends State<DestinationSearch> {
                         : null,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.grey.shade600 
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.grey.shade600 
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.grey.shade800 
+                        : Colors.grey.shade50,
                   ),
                 );
               },
@@ -190,10 +240,43 @@ class _DestinationSearchState extends State<DestinationSearch> {
                   
                   // Search general Karachi locations using Mapbox API (for all patterns)
                   try {
+                    print('🔍 DestinationSearch: Calling MapboxService for "$pattern"');
                     final locations = await MapboxService.searchPlaces(pattern);
-                    locationResults = locations.take(7).map((location) => SearchResult.fromLocation(location)).toList();
+                    print('📊 DestinationSearch: Mapbox returned ${locations.length} results');
+                    
+                    // Filter and prioritize results better - more lenient filtering
+                    final filteredLocations = locations.where((location) {
+                      final name = location['name']?.toString().toLowerCase() ?? '';
+                      final address = location['formattedAddress']?.toString().toLowerCase() ?? '';
+                      
+                      // More lenient Karachi check - accept if it's in Pakistan or has Karachi in name/address
+                      final isInKarachi = address.contains('karachi') || 
+                                        address.contains('pakistan') ||
+                                        name.contains('karachi') ||
+                                        address.contains('pk') ||
+                                        // Accept all results for now to debug
+                                        true;
+                      
+                      // More lenient relevance check
+                      final isRelevant = name.contains(pattern.toLowerCase()) ||
+                                       address.contains(pattern.toLowerCase()) ||
+                                       // Accept all results for now to debug
+                                       true;
+                      
+                      final shouldInclude = isInKarachi && isRelevant;
+                      if (!shouldInclude) {
+                        print('🚫 DestinationSearch: Filtered out "${location['name']}" - isInKarachi: $isInKarachi, isRelevant: $isRelevant');
+                      }
+                      
+                      return shouldInclude;
+                    }).toList();
+                    
+                    print('✅ DestinationSearch: After filtering, ${filteredLocations.length} results remain');
+                    
+                    locationResults = filteredLocations.take(5).map((location) => SearchResult.fromLocation(location)).toList();
+                    print('🎯 DestinationSearch: Final location results: ${locationResults.length}');
                   } catch (e) {
-                    print('Error searching locations: $e');
+                    print('❌ DestinationSearch: Error searching locations: $e');
                   }
                   
                   // Combine and sort results by relevance
@@ -202,22 +285,53 @@ class _DestinationSearchState extends State<DestinationSearch> {
                   
                   // Sort results to prioritize better matches
                   results.sort((a, b) {
-                    // First, prioritize exact matches
-                    final aExactMatch = a.name.toLowerCase().contains(pattern.toLowerCase());
-                    final bExactMatch = b.name.toLowerCase().contains(pattern.toLowerCase());
+                    final patternLower = pattern.toLowerCase();
+                    final aNameLower = a.name.toLowerCase();
+                    final bNameLower = b.name.toLowerCase();
                     
-                    if (aExactMatch && !bExactMatch) return -1;
-                    if (!aExactMatch && bExactMatch) return 1;
+                    // 1. Exact name matches (highest priority)
+                    final aExactName = aNameLower == patternLower;
+                    final bExactName = bNameLower == patternLower;
+                    if (aExactName && !bExactName) return -1;
+                    if (!aExactName && bExactName) return 1;
                     
-                    // Then prioritize BRT stops for bus-related queries
-                    if (pattern.toLowerCase().contains('bus') || 
-                        pattern.toLowerCase().contains('brt') ||
-                        pattern.toLowerCase().contains('stop')) {
+                    // 2. Starts with pattern (high priority)
+                    final aStartsWith = aNameLower.startsWith(patternLower);
+                    final bStartsWith = bNameLower.startsWith(patternLower);
+                    if (aStartsWith && !bStartsWith) return -1;
+                    if (!aStartsWith && bStartsWith) return 1;
+                    
+                    // 3. Contains pattern (medium priority)
+                    final aContains = aNameLower.contains(patternLower);
+                    final bContains = bNameLower.contains(patternLower);
+                    if (aContains && !bContains) return -1;
+                    if (!aContains && bContains) return 1;
+                    
+                    // 4. Check subtitle/address for matches
+                    final aSubtitleLower = a.subtitle.toLowerCase();
+                    final bSubtitleLower = b.subtitle.toLowerCase();
+                    final aSubtitleMatch = aSubtitleLower.contains(patternLower);
+                    final bSubtitleMatch = bSubtitleLower.contains(patternLower);
+                    if (aSubtitleMatch && !bSubtitleMatch) return -1;
+                    if (!aSubtitleMatch && bSubtitleMatch) return 1;
+                    
+                    // 5. Prioritize BRT stops for bus-related queries
+                    if (patternLower.contains('bus') || 
+                        patternLower.contains('brt') ||
+                        patternLower.contains('stop')) {
                       if (a.type == SearchResultType.brtStop && b.type != SearchResultType.brtStop) return -1;
                       if (a.type != SearchResultType.brtStop && b.type == SearchResultType.brtStop) return 1;
                     }
                     
-                    return 0;
+                    // 6. Sort by relevance score if available
+                    final aRelevance = a.location?['relevance'] ?? 0.0;
+                    final bRelevance = b.location?['relevance'] ?? 0.0;
+                    if (aRelevance != bRelevance) {
+                      return bRelevance.compareTo(aRelevance);
+                    }
+                    
+                    // 7. Alphabetical order as final tiebreaker
+                    return aNameLower.compareTo(bNameLower);
                   });
                   
                   return results.take(10).toList(); // Return top 10 results
@@ -538,16 +652,16 @@ class _DestinationSearchState extends State<DestinationSearch> {
     final lowercasePattern = pattern.toLowerCase();
     final List<SearchResult> suggestions = [];
     
-    // Common Karachi locations with coordinates
+    // Common Karachi locations with coordinates - only exact matches
     final Map<String, Map<String, dynamic>> commonLocations = {
-      // Universities
+      // Universities - exact matches only
       'fast': {
         'name': 'FAST University',
         'lat': 24.8607,
         'lng': 67.0011,
         'subtitle': 'University • Karachi',
       },
-      'uni': {
+      'fast university': {
         'name': 'FAST University',
         'lat': 24.8607,
         'lng': 67.0011,
@@ -559,7 +673,19 @@ class _DestinationSearchState extends State<DestinationSearch> {
         'lng': 67.1145,
         'subtitle': 'University • Karachi',
       },
+      'karachi university': {
+        'name': 'University of Karachi',
+        'lat': 24.9434,
+        'lng': 67.1145,
+        'subtitle': 'University • Karachi',
+      },
       'ned': {
+        'name': 'NED University',
+        'lat': 24.9333,
+        'lng': 67.1167,
+        'subtitle': 'University • Karachi',
+      },
+      'ned university': {
         'name': 'NED University',
         'lat': 24.9333,
         'lng': 67.1167,
@@ -659,13 +785,25 @@ class _DestinationSearchState extends State<DestinationSearch> {
       },
       
       // Hospitals
-      'hospital': {
+      'aga khan': {
         'name': 'Aga Khan University Hospital',
         'lat': 24.8607,
         'lng': 67.0011,
         'subtitle': 'Hospital • Karachi',
       },
-      'aga': {
+      'aga khan hospital': {
+        'name': 'Aga Khan University Hospital',
+        'lat': 24.8607,
+        'lng': 67.0011,
+        'subtitle': 'Hospital • Karachi',
+      },
+      'aga khan university': {
+        'name': 'Aga Khan University Hospital',
+        'lat': 24.8607,
+        'lng': 67.0011,
+        'subtitle': 'Hospital • Karachi',
+      },
+      'hospital': {
         'name': 'Aga Khan University Hospital',
         'lat': 24.8607,
         'lng': 67.0011,
@@ -711,17 +849,16 @@ class _DestinationSearchState extends State<DestinationSearch> {
       },
     };
     
-    // Check for matches
+    // Check for exact matches only
     for (final entry in commonLocations.entries) {
       String key = entry.key;
       String name = entry.value['name'].toString().toLowerCase();
       
-      // Check if pattern matches the key or name
-      if (key.contains(lowercasePattern) || 
-          name.contains(lowercasePattern) ||
-          // Special case for "fast uni" combination
-          (lowercasePattern.contains('fast') && lowercasePattern.contains('uni') && 
-           (key == 'fast' || key == 'uni'))) {
+      // Only add if pattern exactly matches the key or name
+      if (key == lowercasePattern || 
+          name == lowercasePattern ||
+          // Allow partial matches for longer queries (3+ characters)
+          (lowercasePattern.length >= 3 && (key.contains(lowercasePattern) || name.contains(lowercasePattern)))) {
         suggestions.add(SearchResult(
           name: entry.value['name'],
           subtitle: entry.value['subtitle'],
@@ -847,13 +984,26 @@ class _DestinationSearchState extends State<DestinationSearch> {
     }
 
     print('Navigating directly to route details screen'); // Debug print
-    // Navigate directly to route details screen
+    // Navigate directly to route details screen with providers
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => RouteDetailsScreen(
-          destinationLat: _selectedDestination!.latitude,
-          destinationLng: _selectedDestination!.longitude,
-          destinationName: _selectedDestination!.name,
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: context.read<EnhancedLocationService>()),
+            ChangeNotifierProvider.value(value: context.read<DataService>()),
+            ChangeNotifierProxyProvider<DataService, RouteFinder>(
+              create: (context) => RouteFinder(context.read<DataService>()),
+              update: (context, dataService, previous) => 
+                previous ?? RouteFinder(dataService),
+            ),
+          ],
+          child: Builder(
+            builder: (context) => RouteDetailsScreen(
+              destinationLat: _selectedDestination!.latitude,
+              destinationLng: _selectedDestination!.longitude,
+              destinationName: _selectedDestination!.name,
+            ),
+          ),
         ),
       ),
     );
