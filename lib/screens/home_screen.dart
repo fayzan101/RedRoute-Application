@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../services/location_service.dart';
-import '../services/geocoding_service.dart';
+import '../services/enhanced_location_service.dart';
+import '../services/mapbox_service.dart';
 import '../services/data_service.dart';
 import '../services/theme_service.dart';
 import '../widgets/destination_search.dart';
@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeServices() async {
-    final locationService = context.read<LocationService>();
+    final locationService = context.read<EnhancedLocationService>();
     final dataService = context.read<DataService>();
     
     // Initialize location service
@@ -109,6 +109,7 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Column(
           children: [
@@ -121,7 +122,7 @@ class HomeTab extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Consumer<LocationService>(
+      body: Consumer<EnhancedLocationService>(
         builder: (context, locationService, child) {
           if (locationService.isLoading) {
             return const Center(
@@ -180,13 +181,29 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, LocationService locationService) {
+  Widget _buildMainContent(BuildContext context, EnhancedLocationService locationService) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Destination Search
+            Text(
+              'Where do you want to go?',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            
+            // Destination Search
+            const DestinationSearch(),
+            
+            const SizedBox(height: 24),
+            
             // Welcome Section
             Card(
               child: Padding(
@@ -206,7 +223,7 @@ class HomeTab extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const Spacer(),
-                        Consumer<LocationService>(
+                        Consumer<EnhancedLocationService>(
                           builder: (context, locationService, child) {
                             return IconButton(
                               onPressed: locationService.isLoading 
@@ -228,7 +245,7 @@ class HomeTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Consumer<LocationService>(
+                    Consumer<EnhancedLocationService>(
                       builder: (context, locationService, child) {
                         final position = locationService.currentPosition;
                         if (position != null) {
@@ -242,7 +259,7 @@ class HomeTab extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               FutureBuilder<String?>(
-                                future: GeocodingService.getAddressFromCoordinates(
+                                future: MapboxService.getAddressFromCoordinates(
                                   position.latitude,
                                   position.longitude,
                                 ),
@@ -289,18 +306,6 @@ class HomeTab extends StatelessWidget {
               ),
             ),
             
-            const SizedBox(height: 24),
-            
-            // Destination Search
-            Text(
-              'Where do you want to go?',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            
-            // Destination Search
-            const DestinationSearch(),
-            
             const SizedBox(height: 32),
             
             // Information Card
@@ -339,6 +344,7 @@ class HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 32), // Bottom padding for better scrolling
           ],
+        ),
         ),
       ),
     );

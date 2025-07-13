@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
-import '../services/location_service.dart';
+import '../services/enhanced_location_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -205,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _refreshLocation() async {
-    final locationService = context.read<LocationService>();
+    final locationService = context.read<EnhancedLocationService>();
     
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

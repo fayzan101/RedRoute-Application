@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/map_search_screen.dart';
+
 import 'screens/route_details_screen.dart';
-import 'services/location_service.dart';
+import 'services/enhanced_location_service.dart';
 import 'services/data_service.dart';
 import 'services/route_finder.dart';
 import 'services/theme_service.dart';
@@ -35,7 +35,7 @@ class RedRouteApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => LocationService()),
+        ChangeNotifierProvider(create: (_) => EnhancedLocationService()),
         ChangeNotifierProvider(create: (_) => DataService()),
         ChangeNotifierProvider(create: (_) => ThemeService()),
         ChangeNotifierProxyProvider<DataService, RouteFinder>(
@@ -52,7 +52,6 @@ class RedRouteApp extends StatelessWidget {
       home: const SplashScreen(),
       routes: {
         '/welcome': (context) => const WelcomeScreen(),
-        '/map-search': (context) => const MapSearchScreen(),
         '/route-details': (context) {
           final journey = ModalRoute.of(context)!.settings.arguments as Journey?;
           return RouteDetailsScreen(journey: journey);
