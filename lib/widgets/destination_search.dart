@@ -9,6 +9,7 @@ import '../services/route_finder.dart';
 import '../models/stop.dart';
 import '../screens/map_screen.dart';
 import '../screens/route_details_screen.dart';
+import '../utils/distance_calculator.dart';
 
 enum SearchResultType { brtStop, generalLocation }
 
@@ -973,11 +974,51 @@ class _DestinationSearchState extends State<DestinationSearch> {
 
     final locationService = context.read<EnhancedLocationService>();
     if (locationService.currentPosition == null) {
-      print('Location not available'); // Debug print
+      print('❌ DestinationSearch: Location not available'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please wait for location to be detected first'),
           backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Debug: Show current location and destination
+    print('📍 DestinationSearch: Current location: ${locationService.currentPosition!.latitude}, ${locationService.currentPosition!.longitude}');
+    print('📍 DestinationSearch: Destination: ${_selectedDestination!.latitude}, ${_selectedDestination!.longitude}');
+    print('📍 DestinationSearch: Destination name: ${_selectedDestination!.name}');
+    
+    // Calculate and show straight-line distance for comparison
+    final straightLineDistance = locationService.getDistanceTo(_selectedDestination!.latitude, _selectedDestination!.longitude);
+    print('📍 DestinationSearch: Straight-line distance: ${locationService.getFormattedDistanceTo(_selectedDestination!.latitude, _selectedDestination!.longitude)}');
+    
+    // Calculate and show road network distance for comparison
+    final roadNetworkDistance = DistanceCalculator.calculateDistance(
+      locationService.currentPosition!.latitude,
+      locationService.currentPosition!.longitude,
+      _selectedDestination!.latitude,
+      _selectedDestination!.longitude,
+    );
+    print('📍 DestinationSearch: Road network distance: ${DistanceCalculator.formatDistance(roadNetworkDistance)}');
+    
+    // Check if location accuracy is poor (accuracy > 100m)
+    if (locationService.currentPosition!.accuracy > 100) {
+      print('⚠️ DestinationSearch: Location accuracy is poor (${locationService.currentPosition!.accuracy}m). Consider refreshing location.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location accuracy is poor (${locationService.currentPosition!.accuracy}m). Tap to refresh.'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'Refresh',
+            onPressed: () async {
+              await locationService.refreshLocation();
+              // Retry navigation after refresh
+              if (locationService.currentPosition != null) {
+                _navigateToRoute();
+              }
+            },
+          ),
         ),
       );
       return;

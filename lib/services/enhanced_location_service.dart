@@ -78,21 +78,29 @@ class EnhancedLocationService extends ChangeNotifier {
       // Try to get last known position first (faster)
       Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
       if (lastKnownPosition != null) {
-        print('Using last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
-        _currentPosition = lastKnownPosition;
-        await _resolveAddress();
-        _setLoading(false);
-        return;
+        print('📍 LocationService: Using last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
+        print('📍 LocationService: Accuracy: ${lastKnownPosition.accuracy}m, Age: ${DateTime.now().difference(lastKnownPosition.timestamp).inMinutes} minutes');
+        
+        // Only use last known position if it's recent (less than 5 minutes old)
+        if (DateTime.now().difference(lastKnownPosition.timestamp).inMinutes < 5) {
+          _currentPosition = lastKnownPosition;
+          await _resolveAddress();
+          _setLoading(false);
+          return;
+        } else {
+          print('📍 LocationService: Last known position is too old, getting fresh location');
+        }
       }
 
       // Get current position with better accuracy settings
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 15),
+        timeLimit: const Duration(seconds: 30), // Increased timeout
         forceAndroidLocationManager: false, // Use Google Play Services if available
       );
       
-      print('Got current position: ${position.latitude}, ${position.longitude}');
+      print('📍 LocationService: Got fresh current position: ${position.latitude}, ${position.longitude}');
+      print('📍 LocationService: Accuracy: ${position.accuracy}m, Timestamp: ${position.timestamp}');
       _currentPosition = position;
       await _resolveAddress();
       
@@ -114,7 +122,7 @@ class EnhancedLocationService extends ChangeNotifier {
           altitudeAccuracy: 0,
           headingAccuracy: 0,
         );
-        print('Using fallback coordinates for Karachi center');
+        print('⚠️ LocationService: Using fallback coordinates for Karachi center - this may cause incorrect distances!');
       }
     } finally {
       _setLoading(false);
@@ -177,6 +185,34 @@ class EnhancedLocationService extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+  
+  /// Force refresh current location with high accuracy
+  Future<void> refreshLocation() async {
+    print('🔄 LocationService: Force refreshing location...');
+    _setLoading(true);
+    _error = null;
+    
+    try {
+      // Force get current position with high accuracy
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 45), // Longer timeout for better accuracy
+        forceAndroidLocationManager: false,
+      );
+      
+      print('📍 LocationService: Refreshed position: ${position.latitude}, ${position.longitude}');
+      print('📍 LocationService: Accuracy: ${position.accuracy}m, Timestamp: ${position.timestamp}');
+      
+      _currentPosition = position;
+      await _resolveAddress();
+      
+    } catch (e) {
+      _error = 'Failed to refresh location: ${e.toString()}';
+      print('❌ LocationService: Refresh error: $e');
+    } finally {
+      _setLoading(false);
+    }
   }
 
   /// Check if current location is in Karachi area

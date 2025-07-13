@@ -330,14 +330,16 @@ void didChangeDependencies() {
                         // View on Map Button
                         _buildViewOnMapButton(),
                         
-                        // Three Journey Cards
+                        // Journey Cards
                         if (widget.journey != null || _foundJourney != null) ...[
                           _buildOverallJourneyCard(),
                           _buildCurrentToBusStopCard(),
+                          _buildBusJourneyCard(),
                           _buildBusStopToDestinationCard(),
                         ] else ...[
                           _buildOverallJourneyCard(),
                           _buildCurrentToBusStopCard(),
+                          _buildBusJourneyCard(),
                           _buildBusStopToDestinationCard(),
                         ],
                         
@@ -959,10 +961,262 @@ void didChangeDependencies() {
           ),
         ],
       ),
+        );
+  }
+
+  Widget _buildBusJourneyCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.blue.shade900 : Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.blue.shade600 : Colors.blue.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark 
+                ? Colors.blue.withOpacity(0.3)
+                : Colors.blue.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.directions_bus,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Bus Journey Details',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF181111),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildJourneyMetric(
+                  icon: Icons.access_time,
+                  title: 'Journey Time',
+                  value: '${_calculateBusTime()} min',
+                  color: Colors.blue.shade600,
+                ),
+              ),
+              Expanded(
+                child: _buildJourneyMetric(
+                  icon: Icons.straighten,
+                  title: 'Journey Distance',
+                  value: '${_calculateBusDistance()} km',
+                  color: Colors.blue.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildJourneyMetric(
+                  icon: Icons.route,
+                  title: 'Routes',
+                  value: _getRouteNames(),
+                  color: Colors.blue.shade600,
+                ),
+              ),
+              Expanded(
+                child: _buildJourneyMetric(
+                  icon: Icons.swap_horiz,
+                  title: 'Transfers',
+                  value: _currentJourney?.requiresTransfer == true ? '1' : '0',
+                  color: Colors.blue.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.blue.shade800 : Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'From ${_currentJourney?.startStop.name ?? 'Boarding Stop'} to ${_currentJourney?.endStop.name ?? 'Destination Stop'}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildBusJourneyDetails(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-    Widget _buildJourneyMetric({
+  Widget _buildBusJourneyDetails() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (_currentJourney == null) {
+      return Text(
+        'No journey details available',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        ),
+      );
+    }
+
+    final List<Widget> details = [];
+    
+    // Show boarding stop
+    details.add(
+      Row(
+        children: [
+          Icon(Icons.trip_origin, size: 14, color: Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Board at: ${_currentJourney!.startStop.name}',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: isDark ? Colors.white : const Color(0xFF181111),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    details.add(const SizedBox(height: 8));
+    
+    // Show routes
+    if (_currentJourney!.routes.isNotEmpty) {
+      final routeNames = _currentJourney!.routes.map((r) => r.name).join(', ');
+      details.add(
+        Row(
+          children: [
+            Icon(Icons.directions_bus, size: 14, color: Colors.blue.shade600),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Routes: $routeNames',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: isDark ? Colors.white : const Color(0xFF181111),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      details.add(const SizedBox(height: 8));
+    }
+    
+    // Show transfer if needed
+    if (_currentJourney!.requiresTransfer && _currentJourney!.transferStop != null) {
+      details.add(
+        Row(
+          children: [
+            Icon(Icons.swap_horiz, size: 14, color: Colors.orange),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Transfer at: ${_currentJourney!.transferStop!.name}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: isDark ? Colors.white : const Color(0xFF181111),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      details.add(const SizedBox(height: 8));
+    }
+    
+    // Show destination stop
+    details.add(
+      Row(
+        children: [
+          Icon(Icons.place, size: 14, color: Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Get off at: ${_currentJourney!.endStop.name}',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: isDark ? Colors.white : const Color(0xFF181111),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    return Column(children: details);
+  }
+
+  String _getRouteNames() {
+    if (_currentJourney == null || _currentJourney!.routes.isEmpty) {
+      return 'N/A';
+    }
+    
+    final routeNames = _currentJourney!.routes.map((r) => r.name).toList();
+    if (routeNames.length <= 2) {
+      return routeNames.join(', ');
+    } else {
+      return '${routeNames.take(2).join(', ')} +${routeNames.length - 2}';
+    }
+  }
+
+  Widget _buildJourneyMetric({
     required IconData icon,
     required String title,
     required String value,
