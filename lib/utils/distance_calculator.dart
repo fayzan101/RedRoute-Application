@@ -2,7 +2,7 @@ import 'dart:math';
 
 class DistanceCalculator {
   /// Calculate distance between two points using Haversine formula
-  /// Returns distance in meters
+  /// Returns distance in meters with realistic road network adjustment
   static double calculateDistance(
     double lat1,
     double lon1,
@@ -22,7 +22,13 @@ class DistanceCalculator {
     
     final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     
-    return earthRadius * c;
+    final double straightLineDistance = earthRadius * c;
+    
+    // Apply realistic road network multiplier
+    // Urban areas typically have 1.2-1.5x multiplier due to road layout, one-way streets, etc.
+    const double urbanMultiplier = 1.35; // Conservative estimate for Karachi
+    
+    return straightLineDistance * urbanMultiplier;
   }
   
   static double _degreesToRadians(double degrees) {

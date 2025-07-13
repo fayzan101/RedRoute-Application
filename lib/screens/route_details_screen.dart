@@ -37,34 +37,49 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   bool isLoading = true;
   Journey? _foundJourney;
 
-    @override
+  @override
   void initState() {
     super.initState();
-    // Set edge-to-edge mode to prevent navigation bar interference
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     
     if (widget.journey != null) {
-      _loadJourneyDetails();
+    _loadJourneyDetails();
     } else if (widget.destinationLat != null && widget.destinationLng != null) {
       _findRoute();
     }
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  @override
+void didChangeDependencies() {
+  super.didChangeDependencies();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  final isDark = Theme.of(context).brightness == Brightness.dark;
 
+  // Configure system UI overlays
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: isDark ? const Color(0xFF121212) : Colors.white,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark, // Android
+      // ⚠️ REMOVE statusBarBrightness (iOS) if causing conflict
+      systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+    ),
+  );
+}
+
+  @override
+  void dispose() {
+    // Reset system UI to default when leaving the screen
     SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent, // Or your custom color
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
       ),
     );
+    super.dispose();
   }
 
   Future<void> _findRoute() async {
@@ -959,27 +974,27 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: 6),
-        Text(
-          title,
-          style: GoogleFonts.plusJakartaSans(
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
             fontSize: 12,
             color: isDark ? Colors.grey.shade400 : const Color(0xFF886363),
-            fontWeight: FontWeight.w500,
-          ),
+                      fontWeight: FontWeight.w500,
+                    ),
           textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
+                    overflow: TextOverflow.ellipsis,
           maxLines: 1,
-        ),
-        const SizedBox(height: 2),
-        Text(
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
           value,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
             fontWeight: FontWeight.bold,
             color: isDark ? Colors.white : const Color(0xFF181111),
-          ),
+                    ),
           textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
+                    overflow: TextOverflow.ellipsis,
           maxLines: 2,
         ),
       ],
@@ -1264,9 +1279,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               ),
             ],
           ),
-        ),
-      );
-    }
+      ),
+    );
+  }
 
     return Wrap(
       spacing: 6,

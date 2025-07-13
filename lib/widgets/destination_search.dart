@@ -400,7 +400,7 @@ class _DestinationSearchState extends State<DestinationSearch> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'No results found',
+                            'No recent searches  found',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -409,7 +409,7 @@ class _DestinationSearchState extends State<DestinationSearch> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Try searching for:\n• Places (e.g., "Dolmen Mall", "Port Grand")\n• Areas (e.g., "Clifton", "Gulshan", "Saddar")\n• Universities (e.g., "FAST", "KU")\n• BRT stops (e.g., "FTC", "Tower")',
+                            '',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.grey.shade500,

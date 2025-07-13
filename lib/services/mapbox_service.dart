@@ -1,18 +1,38 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
+import 'secure_token_service.dart';
 
 class MapboxService {
-  static const String _baseUrl = 'https://api.mapbox.com';
-  static const String _accessToken = 'pk.eyJ1IjoibXRhYWhhIiwiYSI6ImNtYzhzNDdxYTBoYTgydnM5Y25sOWUxNW4ifQ.LNtkLKq7wVti_5_MyaBY-w';
+  static const String _baseUrl = ApiConfig.mapboxBaseUrl;
+  
+  /// Get access token securely
+  static Future<String> get _accessToken async {
+    final token = await SecureTokenService.getToken();
+    if (token != null && SecureTokenService.isValidToken(token)) {
+      return token;
+    }
+    return ApiConfig.mapboxAccessToken;
+  }
   
   /// Search for places using Mapbox Geocoding API
   static Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
     try {
       print('🔍 MapboxService: Searching for "$query"');
       
+      // Check rate limiting
+      if (await SecureTokenService.isRateLimited()) {
+        print('⚠️ MapboxService: Rate limited, skipping request');
+        return [];
+      }
+      
+      // Get access token securely
+      final accessToken = await _accessToken;
+      print('🔐 MapboxService: Using token: ${SecureTokenService.getMaskedToken(accessToken)}');
+      
       // Focus search on Karachi, Pakistan
-      const String karachiBbox = '66.8,24.7,67.4,25.2'; // Karachi bounding box
-      const String country = 'pk'; // Pakistan country code
+      const String karachiBbox = ApiConfig.karachiBbox;
+      const String country = ApiConfig.pakistanCountryCode;
       
       // Try multiple search variations to get better results
       List<String> searchVariations = [
@@ -30,9 +50,9 @@ class MapboxService {
       
       for (String searchQuery in searchVariations) {
         try {
-          final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/$searchQuery.json')
+          final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$searchQuery.json')
               .replace(queryParameters: {
-            'access_token': _accessToken,
+            'access_token': accessToken,
             'bbox': karachiBbox,
             'country': country,
             'types': 'poi,place,neighborhood,address,locality',
@@ -41,7 +61,7 @@ class MapboxService {
             'autocomplete': 'true',
           });
 
-          print('🌐 MapboxService: Making request to ${uri.toString().replaceAll(_accessToken, '***')}');
+          print('🌐 MapboxService: Making request to ${uri.toString().replaceAll(accessToken, '***')}');
           
           final response = await http.get(uri);
           
@@ -110,9 +130,12 @@ class MapboxService {
   /// Get address from coordinates (reverse geocoding)
   static Future<String?> getAddressFromCoordinates(double latitude, double longitude) async {
     try {
-      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/$longitude,$latitude.json')
+      // Get access token securely
+      final accessToken = await _accessToken;
+      
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$longitude,$latitude.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
+        'access_token': accessToken,
         'types': 'poi,place,neighborhood,address',
         'limit': '1',
         'language': 'en',
@@ -138,14 +161,14 @@ class MapboxService {
   /// Get coordinates from address (forward geocoding)
   static Future<Map<String, double>?> getCoordinatesFromAddress(String address) async {
     try {
-      const String karachiBbox = '66.8,24.7,67.4,25.2';
-      const String country = 'pk';
+      // Get access token securely
+      final accessToken = await _accessToken;
       
-      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/$address.json')
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$address.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
-        'bbox': karachiBbox,
-        'country': country,
+        'access_token': accessToken,
+        'bbox': ApiConfig.karachiBbox,
+        'country': ApiConfig.pakistanCountryCode,
         'types': 'poi,place,neighborhood,address',
         'limit': '1',
         'language': 'en',
@@ -175,8 +198,8 @@ class MapboxService {
   /// Search for BRT stops specifically
   static Future<List<Map<String, dynamic>>> searchBRTStops(String query) async {
     try {
-      const String karachiBbox = '66.8,24.7,67.4,25.2';
-      const String country = 'pk';
+      // Get access token securely
+      final accessToken = await _accessToken;
       
       // Add BRT-specific terms to improve search
       String searchQuery = query;
@@ -184,11 +207,11 @@ class MapboxService {
         searchQuery = '$query BRT bus stop';
       }
       
-      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/$searchQuery.json')
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$searchQuery.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
-        'bbox': karachiBbox,
-        'country': country,
+        'access_token': accessToken,
+        'bbox': ApiConfig.karachiBbox,
+        'country': ApiConfig.pakistanCountryCode,
         'types': 'poi',
         'limit': '10',
         'language': 'en',
@@ -265,9 +288,12 @@ class MapboxService {
     {double radius = 1000}
   ) async {
     try {
-      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/nearby.json')
+      // Get access token securely
+      final accessToken = await _accessToken;
+      
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/nearby.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
+        'access_token': accessToken,
         'proximity': '$longitude,$latitude',
         'types': 'poi,place',
         'limit': '10',
@@ -310,9 +336,12 @@ class MapboxService {
     String profile = 'driving', // driving, walking, cycling, driving-traffic
   }) async {
     try {
-      final Uri uri = Uri.parse('$_baseUrl/directions/v5/mapbox/$profile/$startLng,$startLat;$endLng,$endLat.json')
+      // Get access token securely
+      final accessToken = await _accessToken;
+      
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxDirectionsEndpoint}/$profile/$startLng,$startLat;$endLng,$endLat.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
+        'access_token': accessToken,
         'geometries': 'geojson',
         'overview': 'full',
         'steps': 'true',
@@ -361,7 +390,7 @@ class MapboxService {
   }
 
   /// Get static map image URL for a route
-  static String getStaticMapUrl({
+  static Future<String> getStaticMapUrl({
     required double startLat,
     required double startLng,
     required double endLat,
@@ -370,7 +399,10 @@ class MapboxService {
     int width = 400,
     int height = 300,
     double zoom = 12,
-  }) {
+  }) async {
+    // Get access token securely
+    final accessToken = await _accessToken;
+    
     final List<String> coordinates = [];
     
     // Add start point
@@ -388,16 +420,19 @@ class MapboxService {
     
     final String path = coordinates.join(';');
     
-    return '$_baseUrl/styles/v1/mapbox/streets-v11/static/path-5+E53E3E-1($path)/$startLng,$startLat,$zoom/$width x $height?access_token=$_accessToken&padding=50';
+    return '$_baseUrl/styles/v1/mapbox/streets-v11/static/path-5+E53E3E-1($path)/$startLng,$startLat,$zoom/$width x $height?access_token=$accessToken&padding=50';
   }
 
   /// Get static map URL for bus route with stops
-  static String getBusRouteMapUrl({
+  static Future<String> getBusRouteMapUrl({
     required List<Map<String, double>> stops,
     int width = 400,
     int height = 300,
-  }) {
+  }) async {
     if (stops.isEmpty) return '';
+    
+    // Get access token securely
+    final accessToken = await _accessToken;
     
     final List<String> coordinates = stops.map((stop) => '${stop['longitude']},${stop['latitude']}').toList();
     final String path = coordinates.join(';');
@@ -423,7 +458,7 @@ class MapboxService {
     if (maxDiff > 0.01) zoom = 13;
     if (maxDiff > 0.005) zoom = 14;
     
-    return '$_baseUrl/styles/v1/mapbox/streets-v11/static/path-5+E53E3E-1($path)/$centerLng,$centerLat,$zoom/$width x $height?access_token=$_accessToken&padding=50';
+    return '$_baseUrl/styles/v1/mapbox/streets-v11/static/path-5+E53E3E-1($path)/$centerLng,$centerLat,$zoom/$width x $height?access_token=$accessToken&padding=50';
   }
 
   /// Get detailed journey information including multiple transport modes
@@ -497,9 +532,12 @@ class MapboxService {
     double radius = 1000,
   }) async {
     try {
-      final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/nearby.json')
+      // Get access token securely
+      final accessToken = await _accessToken;
+      
+      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/nearby.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
+        'access_token': accessToken,
         'proximity': '$longitude,$latitude',
         'types': 'poi',
         'limit': '20',
