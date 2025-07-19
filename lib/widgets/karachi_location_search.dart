@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../services/karachi_places_service.dart';
 import '../services/isar_database_service.dart';
+import '../services/recent_searches_service.dart';
 import '../models/place_isar.dart';
 import '../utils/distance_calculator.dart';
 
@@ -40,6 +41,16 @@ class UnifiedPlace {
       subtitle: place.subtitle,
     );
   }
+
+  factory UnifiedPlace.fromRecentSearch(RecentSearch search) {
+    return UnifiedPlace(
+      name: search.name,
+      lat: search.latitude,
+      lon: search.longitude,
+      displayName: search.name,
+      subtitle: search.subtitle,
+    );
+  }
 }
 
 class KarachiLocationSearch extends StatefulWidget {
@@ -48,6 +59,7 @@ class KarachiLocationSearch extends StatefulWidget {
   final String? hintText;
   final bool showPopularPlaces;
   final bool showSearchIcon;
+  final bool showRecentSearches;
   final EdgeInsetsGeometry? padding;
   final InputDecoration? decoration;
   final TextStyle? textStyle;
@@ -60,6 +72,7 @@ class KarachiLocationSearch extends StatefulWidget {
     this.hintText,
     this.showPopularPlaces = true,
     this.showSearchIcon = true,
+    this.showRecentSearches = true,
     this.padding,
     this.decoration,
     this.textStyle,
@@ -72,19 +85,33 @@ class KarachiLocationSearch extends StatefulWidget {
 
 class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
   final TextEditingController _controller = TextEditingController();
+  final RecentSearchesService _recentSearchesService = RecentSearchesService();
   bool _isLoading = false;
   List<UnifiedPlace> _popularPlaces = [];
+  List<RecentSearch> _recentSearches = [];
+  bool _showRecentSearches = false;
 
   @override
   void initState() {
     super.initState();
     _loadPlaces();
+    _loadRecentSearches();
+    
+    // Listen to text changes to show/hide recent searches
+    _controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    setState(() {
+      _showRecentSearches = _controller.text.isEmpty && widget.showRecentSearches;
+    });
   }
 
   Future<void> _loadPlaces() async {
@@ -106,6 +133,39 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRecentSearches() async {
+    if (!widget.showRecentSearches) return;
+    
+    try {
+      final searches = await _recentSearchesService.getRecentSearches();
+      setState(() {
+        _recentSearches = searches;
+      });
+    } catch (e) {
+      print('❌ KarachiLocationSearch: Error loading recent searches: $e');
+    }
+  }
+
+  Future<void> _addToRecentSearches(UnifiedPlace place) async {
+    if (!widget.showRecentSearches) return;
+    
+    try {
+      final recentSearch = RecentSearch(
+        query: place.displayName,
+        name: place.displayName,
+        subtitle: place.subtitle,
+        latitude: place.lat,
+        longitude: place.lon,
+        timestamp: DateTime.now(),
+      );
+      
+      await _recentSearchesService.addRecentSearch(recentSearch);
+      await _loadRecentSearches(); // Reload to update the list
+    } catch (e) {
+      print('❌ KarachiLocationSearch: Error adding to recent searches: $e');
     }
   }
 
@@ -182,6 +242,11 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
                     vertical: 16,
                   ),
                 ),
+                onTap: () {
+                  setState(() {
+                    _showRecentSearches = _controller.text.isEmpty && widget.showRecentSearches;
+                  });
+                },
               );
             },
             suggestionsCallback: (pattern) async {
@@ -212,6 +277,7 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
             },
             onSelected: (UnifiedPlace place) {
               _controller.text = place.displayName;
+              _addToRecentSearches(place);
               widget.onPlaceSelected?.call(place);
             },
             emptyBuilder: (context) => _buildEmptyState(),
@@ -219,8 +285,14 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
             errorBuilder: (context, error) => _buildErrorState(error),
           ),
           
+          // Recent Searches Section
+          if (_showRecentSearches && _recentSearches.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildRecentSearchesSection(),
+          ],
+          
           // Popular Places Section
-          if (widget.showPopularPlaces && _popularPlaces.isNotEmpty) ...[
+          if (widget.showPopularPlaces && _popularPlaces.isNotEmpty && !_showRecentSearches) ...[
             const SizedBox(height: 16),
             _buildPopularPlacesSection(),
           ],
@@ -295,7 +367,10 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    onPressed: () => widget.onRouteRequested!(place),
+                    onPressed: () {
+                      _addToRecentSearches(place);
+                      widget.onRouteRequested!(place);
+                    },
                     icon: Icon(
                       Icons.directions,
                       color: Theme.of(context).primaryColor,
@@ -404,6 +479,158 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
     );
   }
 
+  Widget _buildRecentSearchesSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Recent Searches',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black,
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () async {
+                await _recentSearchesService.clearRecentSearches();
+                await _loadRecentSearches();
+              },
+              icon: Icon(
+                Icons.clear_all,
+                size: 16,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+              label: Text(
+                'Clear All',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _recentSearches.length,
+          itemBuilder: (context, index) {
+            final search = _recentSearches[index];
+            final place = UnifiedPlace.fromRecentSearch(search);
+            
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withOpacity(0.1),
+                  child: Icon(
+                    Icons.history,
+                    color: Colors.orange,
+                    size: 18,
+                  ),
+                ),
+                title: Text(
+                  search.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      search.subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _formatTimestamp(search.timestamp),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.grey.shade500 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: widget.onRouteRequested != null
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              _addToRecentSearches(place);
+                              widget.onRouteRequested!(place);
+                            },
+                            icon: Icon(
+                              Icons.directions,
+                              color: Theme.of(context).primaryColor,
+                              size: 18,
+                            ),
+                            tooltip: 'Get Route',
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          ),
+                        ],
+                      )
+                    : Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                onTap: () {
+                  _controller.text = search.name;
+                  _addToRecentSearches(place);
+                  widget.onPlaceSelected?.call(place);
+                  setState(() {
+                    _showRecentSearches = false;
+                  });
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   Widget _buildPopularPlacesSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
@@ -439,10 +666,14 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
               child: InkWell(
                 onTap: () {
                   _controller.text = place.displayName;
+                  _addToRecentSearches(place);
                   widget.onPlaceSelected?.call(place);
                 },
                 onLongPress: widget.onRouteRequested != null
-                    ? () => widget.onRouteRequested!(place)
+                    ? () {
+                        _addToRecentSearches(place);
+                        widget.onRouteRequested!(place);
+                      }
                     : null,
                 borderRadius: BorderRadius.circular(12),
                                 child: Padding(
@@ -494,7 +725,10 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
                               ),
                             ),
                             IconButton(
-                              onPressed: () => widget.onRouteRequested!(place),
+                              onPressed: () {
+                                _addToRecentSearches(place);
+                                widget.onRouteRequested!(place);
+                              },
                               icon: Icon(
                                 Icons.directions,
                                 color: Theme.of(context).primaryColor,
