@@ -1207,6 +1207,7 @@
       "stops": [
         {
           "stopId": "MCP",
+          
           "name": "Malir Cantt Check Post 5",
           "latitude": 24.9132,
           "longitude": 67.2052,

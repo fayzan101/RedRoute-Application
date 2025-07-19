@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/route.dart';
 import '../utils/distance_calculator.dart';
 import '../services/mapbox_service.dart';
+import '../services/mapbox_directions_service.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/route_finder.dart';
 import '../services/transport_preference_service.dart';
@@ -189,33 +190,99 @@ void didChangeDependencies() {
     final currentJourney = journey ?? widget.journey;
     if (currentJourney != null) {
       try {
-        // Get journey details
-        final details = await MapboxService.getJourneyDetails(
-          startLat: currentJourney.startStop.lat,
-          startLng: currentJourney.startStop.lng,
-          endLat: currentJourney.endStop.lat,
-          endLng: currentJourney.endStop.lng,
-          busStopLat: currentJourney.startStop.lat,
-          busStopLng: currentJourney.startStop.lng,
-          destinationStopLat: currentJourney.endStop.lat,
-          destinationStopLng: currentJourney.endStop.lng,
-        );
+        // Get user's current location
+        final locationService = context.read<EnhancedLocationService>();
+        final userPosition = locationService.currentPosition;
+        
+        if (userPosition != null) {
+          // Get accurate route information using Mapbox Directions API
+          final Map<String, dynamic> routeDetails = {};
+          
+          // Get walking route from user to bus stop
+          final walkingToBusStop = await _getWalkingRouteInfo(
+            startLat: userPosition.latitude,
+            startLng: userPosition.longitude,
+            endLat: currentJourney.startStop.lat,
+            endLng: currentJourney.startStop.lng,
+          );
+          routeDetails['walkingToBusStop'] = walkingToBusStop;
+          
+          // Get driving route for bus journey (simulated)
+          final busJourney = await _getDrivingRouteInfo(
+            startLat: currentJourney.startStop.lat,
+            startLng: currentJourney.startStop.lng,
+            endLat: currentJourney.endStop.lat,
+            endLng: currentJourney.endStop.lng,
+          );
+          routeDetails['busJourney'] = busJourney;
+          
+          // Get walking route from bus stop to destination
+          final walkingToDestination = await _getWalkingRouteInfo(
+            startLat: currentJourney.endStop.lat,
+            startLng: currentJourney.endStop.lng,
+            endLat: currentJourney.endStop.lat,
+            endLng: currentJourney.endStop.lng,
+          );
+          routeDetails['walkingToDestination'] = walkingToDestination;
+          
+          // Calculate total journey info
+          final totalDistance = walkingToBusStop['distance'] + 
+                              busJourney['distance'] + 
+                              walkingToDestination['distance'];
+          final totalDuration = walkingToBusStop['duration'] + 
+                               busJourney['duration'] + 
+                               walkingToDestination['duration'];
+          
+          routeDetails['totalDistance'] = totalDistance;
+          routeDetails['totalDuration'] = totalDuration;
+          routeDetails['totalDistanceKm'] = totalDistance / 1000;
+          routeDetails['totalDurationMinutes'] = (totalDuration / 60).round();
+          
+          // Get legacy journey details for compatibility
+          final details = await MapboxService.getJourneyDetails(
+            startLat: currentJourney.startStop.lat,
+            startLng: currentJourney.startStop.lng,
+            endLat: currentJourney.endStop.lat,
+            endLng: currentJourney.endStop.lng,
+            busStopLat: currentJourney.startStop.lat,
+            busStopLng: currentJourney.startStop.lng,
+            destinationStopLat: currentJourney.endStop.lat,
+            destinationStopLng: currentJourney.endStop.lng,
+          );
 
-        // Get traffic information
-        final trafficInfo = await MapboxService.getTrafficInfo(
-          startLat: currentJourney.startStop.lat,
-          startLng: currentJourney.startStop.lng,
-          endLat: currentJourney.endStop.lat,
-          endLng: currentJourney.endStop.lng,
-        );
+          // Get traffic information
+          final trafficInfo = await MapboxService.getTrafficInfo(
+            startLat: currentJourney.startStop.lat,
+            startLng: currentJourney.startStop.lng,
+            endLat: currentJourney.endStop.lat,
+            endLng: currentJourney.endStop.lng,
+          );
 
-        setState(() {
-          journeyDetails = details;
-          if (trafficInfo != null) {
-            journeyDetails!['trafficInfo'] = trafficInfo;
-          }
-          isLoading = false;
-        });
+          setState(() {
+            journeyDetails = {...details, ...routeDetails};
+            if (trafficInfo != null) {
+              journeyDetails!['trafficInfo'] = trafficInfo;
+            }
+            isLoading = false;
+          });
+        } else {
+          // Fallback to legacy method if location not available
+          final details = await MapboxService.getJourneyDetails(
+            startLat: currentJourney.startStop.lat,
+            startLng: currentJourney.startStop.lng,
+            endLat: currentJourney.endStop.lat,
+            endLng: currentJourney.endStop.lng,
+            busStopLat: currentJourney.startStop.lat,
+            busStopLng: currentJourney.startStop.lng,
+            destinationStopLat: currentJourney.endStop.lat,
+            destinationStopLng: currentJourney.endStop.lng,
+          );
+
+          setState(() {
+            journeyDetails = details;
+            isLoading = false;
+          });
+        }
       } catch (e) {
         print('Error loading journey details: $e');
         setState(() {
@@ -1541,6 +1608,101 @@ void didChangeDependencies() {
       spacing: 6,
       runSpacing: 6,
       children: suggestions,
+    );
+  }
+
+  /// Get route information using Mapbox Directions API with fallback to local calculation
+  Future<Map<String, dynamic>> _getMapboxRouteInfo({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+    MapboxRouteType routeType = MapboxRouteType.drivingTraffic,
+  }) async {
+    try {
+      final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        startLat: startLat,
+        startLng: startLng,
+        endLat: endLat,
+        endLng: endLng,
+        routeType: routeType,
+      );
+      
+      if (routeInfo != null) {
+        return {
+          'distance': routeInfo.distance,
+          'duration': routeInfo.duration,
+          'formattedDistance': routeInfo.formattedDistance,
+          'formattedDuration': routeInfo.formattedDuration,
+          'durationMinutes': routeInfo.durationMinutes,
+          'distanceKm': routeInfo.distanceKm,
+          'source': 'mapbox',
+        };
+      }
+    } catch (e) {
+      print('❌ RouteDetailsScreen: Mapbox route calculation failed: $e');
+    }
+    
+    // Fallback to local calculation
+    final localDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+    int localDuration;
+    
+    switch (routeType) {
+      case MapboxRouteType.walking:
+        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(localDistance);
+        break;
+      case MapboxRouteType.cycling:
+        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(localDistance * 0.4); // Cycling is faster
+        break;
+      case MapboxRouteType.driving:
+      case MapboxRouteType.drivingTraffic:
+        localDuration = DistanceCalculator.calculateDrivingTimeMinutes(
+          distanceInMeters: localDistance,
+          vehicleType: 'car',
+        );
+        break;
+    }
+    
+    return {
+      'distance': localDistance,
+      'duration': localDuration * 60.0, // Convert to seconds
+      'formattedDistance': DistanceCalculator.formatDistance(localDistance),
+      'formattedDuration': '${localDuration}min',
+      'durationMinutes': localDuration,
+      'distanceKm': localDistance / 1000,
+      'source': 'local',
+    };
+  }
+
+  /// Get walking route information using Mapbox
+  Future<Map<String, dynamic>> _getWalkingRouteInfo({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    return await _getMapboxRouteInfo(
+      startLat: startLat,
+      startLng: startLng,
+      endLat: endLat,
+      endLng: endLng,
+      routeType: MapboxRouteType.walking,
+    );
+  }
+
+  /// Get driving route information using Mapbox
+  Future<Map<String, dynamic>> _getDrivingRouteInfo({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    return await _getMapboxRouteInfo(
+      startLat: startLat,
+      startLng: startLng,
+      endLat: endLat,
+      endLng: endLng,
+      routeType: MapboxRouteType.drivingTraffic,
     );
   }
 

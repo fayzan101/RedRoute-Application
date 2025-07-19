@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -10,10 +11,37 @@ import 'services/enhanced_location_service.dart';
 import 'services/data_service.dart';
 import 'services/route_finder.dart';
 import 'services/theme_service.dart';
+import 'services/isar_database_service.dart';
+import 'services/development_data_importer.dart';
 import 'models/route.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Isar database
+  try {
+    await IsarDatabaseService.initialize();
+    
+    // In development mode, import data from JSON if needed
+    if (kDebugMode) {
+      final importStatus = await DevelopmentDataImporter.getImportStatus();
+      if (importStatus['canImport'] == true) {
+        print('🔄 Main: Development mode - importing data from JSON...');
+        final success = await DevelopmentDataImporter.importFromJson();
+        if (success) {
+          print('✅ Main: Development import completed successfully');
+        } else {
+          print('⚠️ Main: Development import failed, but app will continue');
+        }
+      } else {
+        print('✅ Main: Database already contains ${importStatus['totalPlaces']} places - no import needed');
+      }
+    }
+    
+    print('✅ Main: Isar database initialized successfully');
+  } catch (e) {
+    print('❌ Main: Error initializing Isar database: $e');
+  }
   
   // Set system UI mode for the entire app
   SystemChrome.setSystemUIOverlayStyle(

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/mapbox_service.dart';
 import '../services/data_service.dart';
 import '../services/theme_service.dart';
-import '../widgets/destination_search.dart';
+import '../services/karachi_places_service.dart';
+import '../services/route_finder.dart';
+import '../widgets/karachi_location_search.dart';
 import 'map_screen.dart';
 import 'settings_screen.dart';
+import 'route_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -189,6 +193,56 @@ class HomeTab extends StatelessWidget {
     );
   }
 
+  void _navigateToRoute(BuildContext context, UnifiedPlace place) {
+    // Check if location service is available
+    try {
+      final locationService = context.read<EnhancedLocationService>();
+      final dataService = context.read<DataService>();
+      
+      if (locationService.currentPosition == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please wait for location to be detected first'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Navigate to route details screen with the selected place
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MultiProvider(
+            providers: [
+              ChangeNotifierProvider<EnhancedLocationService>.value(value: locationService),
+              ChangeNotifierProvider<DataService>.value(value: dataService),
+              ChangeNotifierProxyProvider<DataService, RouteFinder>(
+                create: (context) => RouteFinder(dataService),
+                update: (context, dataService, previous) => 
+                  previous ?? RouteFinder(dataService),
+              ),
+            ],
+            child: Builder(
+              builder: (context) => RouteDetailsScreen(
+                destinationLat: place.lat,
+                destinationLng: place.lon,
+                destinationName: place.displayName,
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('❌ Home: Error navigating to route: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _buildMainContent(BuildContext context, EnhancedLocationService locationService) {
     return SafeArea(
       child: Padding(
@@ -200,17 +254,27 @@ class HomeTab extends StatelessWidget {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Destination Search
+            // Karachi Location Search
             Text(
               'Where do you want to go?',
               style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             
-            // Destination Search
-            const DestinationSearch(),
+            // Karachi Location Search
+            KarachiLocationSearch(
+              onPlaceSelected: (place) {
+                // Directly navigate to route details when place is selected
+                _navigateToRoute(context, place);
+              },
+              onRouteRequested: (place) => _navigateToRoute(context, place),
+              hintText: 'Search places in Karachi',
+              showPopularPlaces: true,
+              showSearchIcon: true,
+            ),
             
-            const SizedBox(height: 24),
+
             
             // Welcome Section
             Card(

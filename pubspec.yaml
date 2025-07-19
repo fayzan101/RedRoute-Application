@@ -19,12 +19,31 @@ dependencies:
   google_fonts: ^6.1.0
   shared_preferences: ^2.2.2
   crypto: ^3.0.3
+  isar:
+    hosted:
+      name: isar
+      url: https://pub.isar-community.dev/
+    version: ^3.0.0
+  isar_flutter_libs:
+    hosted:
+      name: isar_flutter_libs
+      url: https://pub.isar-community.dev/
+    version: ^3.0.0
+  path_provider: ^2.1.1
+  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
+  isar_generator:
+    hosted:
+      name: isar_generator
+      url: https://pub.isar-community.dev/
+    version: ^3.0.0
+  build_runner: ^2.4.7
+  
 
 flutter_launcher_icons:
   android: true
@@ -36,3 +55,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brt_stops.json
+    - assets/places1.json
