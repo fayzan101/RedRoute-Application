@@ -637,11 +637,9 @@ class _MapScreenState extends State<MapScreen> {
   int _calculateTotalTime() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    
     return DistanceUtils.DistanceCalculator.calculateJourneyTimeWithBykea(
       distanceToBusStop: _currentJourney!.walkingDistanceToStart,
-      busJourneyDistance: busDistance,
+      busJourneyDistance: _currentJourney!.busDistance,
       distanceFromBusStopToDestination: _currentJourney!.walkingDistanceFromEnd,
       requiresTransfer: _currentJourney!.requiresTransfer,
       departureTime: DateTime.now(),
@@ -651,10 +649,8 @@ class _MapScreenState extends State<MapScreen> {
   int _calculateBusTime() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    
     return DistanceUtils.DistanceCalculator.calculatePublicTransportTimeMinutes(
-      distanceInMeters: busDistance,
+      distanceInMeters: _currentJourney!.busDistance,
       isBRT: true,
       requiresTransfer: _currentJourney!.requiresTransfer,
       departureTime: DateTime.now(),
@@ -664,7 +660,6 @@ class _MapScreenState extends State<MapScreen> {
   String _calculateBusDistance() {
     if (_currentJourney == null) return '0';
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    return (busDistance / 1000).toStringAsFixed(1);
+    return (_currentJourney!.busDistance / 1000).toStringAsFixed(1);
   }
 }

@@ -1,0 +1,1926 @@
+{
+  "routes": [
+    {
+      "routeId": "1",
+      "routeName": "Route 1",
+      "lengthKm": 28,
+      "phase": "Operational",
+      "fromTerminal": "Khokrapar",
+      "toTerminal": "Dockyard",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "KHO",
+          "name": "Khokrapar",
+          "latitude": 24.8937,
+          "longitude": 67.1882,
+          "availableRoutes": ["1"]
+        },
+        {
+          "stopId": "SAU",
+          "name": "Saudabad",
+          "latitude": 24.8891,
+          "longitude": 67.1798,
+          "availableRoutes": ["1"]
+        },
+        {
+          "stopId": "RCD",
+          "name": "RCD Ground",
+          "latitude": 24.8825,
+          "longitude": 67.1725,
+          "availableRoutes": ["1"]
+        },
+        {
+          "stopId": "KAL",
+          "name": "Kalaboard",
+          "latitude": 24.8789,
+          "longitude": 67.1652,
+          "availableRoutes": ["1", "12"]
+        },
+        {
+          "stopId": "MHT",
+          "name": "Malir Halt",
+          "latitude": 24.8733,
+          "longitude": 67.1592,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "COL",
+          "name": "Colony Gate",
+          "latitude": 24.8683,
+          "longitude": 67.1523,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "NKB",
+          "name": "Nata Khan Bridge",
+          "latitude": 24.8621,
+          "longitude": 67.1432,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "DRS",
+          "name": "Drigh Road Station",
+          "latitude": 24.8582,
+          "longitude": 67.1352,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "PAF",
+          "name": "PAF Base Faisal",
+          "latitude": 24.8532,
+          "longitude": 67.1242,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "LKT",
+          "name": "Laal Kothi",
+          "latitude": 24.8482,
+          "longitude": 67.1152,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "KRZ",
+          "name": "Karsaz",
+          "latitude": 24.8432,
+          "longitude": 67.1052,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "NUR",
+          "name": "Nursery",
+          "latitude": 24.8382,
+          "longitude": 67.0952,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "FTC",
+          "name": "FTC",
+          "latitude": 24.8332,
+          "longitude": 67.0852,
+          "availableRoutes": ["1", "3", "9", "12"]
+        },
+        {
+          "stopId": "RPZ",
+          "name": "Regent Plaza",
+          "latitude": 24.8282,
+          "longitude": 67.0752,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "MET",
+          "name": "Metropole",
+          "latitude": 24.8232,
+          "longitude": 67.0652,
+          "availableRoutes": ["1", "9", "10"]
+        },
+        {
+          "stopId": "FCH",
+          "name": "Fawwara Chowk",
+          "latitude": 24.8182,
+          "longitude": 67.0552,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "ARC",
+          "name": "Arts Council",
+          "latitude": 24.8132,
+          "longitude": 67.0452,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "SHC",
+          "name": "Shaheen Complex",
+          "latitude": 24.8082,
+          "longitude": 67.0352,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "IIC",
+          "name": "I.I.Chundrigar",
+          "latitude": 24.8032,
+          "longitude": 67.0252,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "TWR",
+          "name": "Tower",
+          "latitude": 24.8132,
+          "longitude": 67.0152,
+          "availableRoutes": ["1", "4", "8", "9", "13"]
+        },
+        {
+          "stopId": "FSH",
+          "name": "Fisheries",
+          "latitude": 24.8082,
+          "longitude": 67.0052,
+          "availableRoutes": ["1"]
+        },
+        {
+          "stopId": "DCK",
+          "name": "Dockyard",
+          "latitude": 24.8032,
+          "longitude": 66.9952,
+          "availableRoutes": ["1"]
+        }
+      ]
+    },
+    {
+      "routeId": "2",
+      "routeName": "Route 2",
+      "lengthKm": 30,
+      "phase": "Operational",
+      "fromTerminal": "Power House",
+      "toTerminal": "Indus Hospital",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "PWH",
+          "name": "Power House",
+          "latitude": 24.9963,
+          "longitude": 67.0841,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "UPM",
+          "name": "UP Mor",
+          "latitude": 24.9881,
+          "longitude": 67.0798,
+          "availableRoutes": ["2", "4"]
+        },
+        {
+          "stopId": "NGC",
+          "name": "Nagan Chowrangi",
+          "latitude": 24.9781,
+          "longitude": 67.0741,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "SFM",
+          "name": "Shafiq Morr",
+          "latitude": 24.9681,
+          "longitude": 67.0698,
+          "availableRoutes": ["2", "4"]
+        },
+        {
+          "stopId": "SGT",
+          "name": "Sohrab Goth",
+          "latitude": 24.9581,
+          "longitude": 67.0641,
+          "availableRoutes": ["2", "3", "4", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "GLC",
+          "name": "Gulshan Chowrangi",
+          "latitude": 24.9281,
+          "longitude": 67.0741,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "NPA",
+          "name": "NIPA",
+          "latitude": 24.9181,
+          "longitude": 67.0841,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "JHM",
+          "name": "Johar Morr",
+          "latitude": 24.9081,
+          "longitude": 67.0941,
+          "availableRoutes": ["2", "EV-3"]
+        },
+        {
+          "stopId": "COD",
+          "name": "COD",
+          "latitude": 24.8881,
+          "longitude": 67.1041,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "DRS",
+          "name": "Drigh Road Station",
+          "latitude": 24.8582,
+          "longitude": 67.1352,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "COL",
+          "name": "Colony Gate",
+          "latitude": 24.8683,
+          "longitude": 67.1523,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "SFC",
+          "name": "Shah Faisal Colony",
+          "latitude": 24.8781,
+          "longitude": 67.1641,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "SNC",
+          "name": "Singer Chowrangi",
+          "latitude": 24.8681,
+          "longitude": 67.1741,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "KDS",
+          "name": "Khaddi Stop",
+          "latitude": 24.8581,
+          "longitude": 67.1841,
+          "availableRoutes": ["2"]
+        },
+        {
+          "stopId": "INH",
+          "name": "Indus Hospital",
+          "latitude": 24.8481,
+          "longitude": 67.1941,
+          "availableRoutes": ["2", "12"]
+        }
+      ]
+    },
+    {
+      "routeId": "3",
+      "routeName": "Route 3",
+      "lengthKm": 31,
+      "phase": "Operational",
+      "fromTerminal": "Power House",
+      "toTerminal": "Nasir Jump",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "PWH",
+          "name": "Power House",
+          "latitude": 24.9963,
+          "longitude": 67.0841,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "UPM",
+          "name": "UP More",
+          "latitude": 24.9881,
+          "longitude": 67.0798,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "NGC",
+          "name": "Nagan Chowrangi",
+          "latitude": 24.9781,
+          "longitude": 67.0741,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "SKH",
+          "name": "Sakhi Hasan",
+          "latitude": 24.9681,
+          "longitude": 67.0598,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "FSC",
+          "name": "5 Star Chowrangi",
+          "latitude": 24.9581,
+          "longitude": 67.0541,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "KDA",
+          "name": "KDA Chowrangi",
+          "latitude": 24.9481,
+          "longitude": 67.0498,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "BOF",
+          "name": "Board Office",
+          "latitude": 24.9381,
+          "longitude": 67.0441,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "NEG",
+          "name": "Nazimabad Eid Gah Ground",
+          "latitude": 24.9281,
+          "longitude": 67.0398,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "L10",
+          "name": "Liaquatabad 10 Number",
+          "latitude": 24.9181,
+          "longitude": 67.0341,
+          "availableRoutes": ["3", "4"]
+        },
+        {
+          "stopId": "ESN",
+          "name": "Essa Nagri",
+          "latitude": 24.9081,
+          "longitude": 67.0298,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "CVC",
+          "name": "Civic Centre",
+          "latitude": 24.8981,
+          "longitude": 67.0241,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "NST",
+          "name": "National Stadium",
+          "latitude": 24.8881,
+          "longitude": 67.0198,
+          "availableRoutes": ["3", "EV-3"]
+        },
+        {
+          "stopId": "KRZ",
+          "name": "Karsaz",
+          "latitude": 24.8432,
+          "longitude": 67.1052,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "NUR",
+          "name": "Nursery",
+          "latitude": 24.8382,
+          "longitude": 67.0952,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "FTC",
+          "name": "FTC",
+          "latitude": 24.8332,
+          "longitude": 67.0852,
+          "availableRoutes": ["1", "3", "9", "12"]
+        },
+        {
+          "stopId": "KOR",
+          "name": "Korangi Road",
+          "latitude": 24.8282,
+          "longitude": 67.0952,
+          "availableRoutes": ["3", "10"]
+        },
+        {
+          "stopId": "KPT",
+          "name": "KPT Interchange",
+          "latitude": 24.8232,
+          "longitude": 67.1052,
+          "availableRoutes": ["3", "10", "11"]
+        },
+        {
+          "stopId": "SHN",
+          "name": "Shan Chowrangi",
+          "latitude": 24.8182,
+          "longitude": 67.1152,
+          "availableRoutes": ["3"]
+        },
+        {
+          "stopId": "NSJ",
+          "name": "Nasir Jump",
+          "latitude": 24.8132,
+          "longitude": 67.1252,
+          "availableRoutes": ["3", "12"]
+        }
+      ]
+    },
+    {
+      "routeId": "4",
+      "routeName": "Route 4",
+      "lengthKm": 21,
+      "phase": "Operational",
+      "fromTerminal": "Power House",
+      "toTerminal": "Keamari",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "PWH",
+          "name": "Power House",
+          "latitude": 24.9963,
+          "longitude": 67.0841,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "UPM",
+          "name": "UP Mor",
+          "latitude": 24.9881,
+          "longitude": 67.0798,
+          "availableRoutes": ["2", "4"]
+        },
+        {
+          "stopId": "NGC",
+          "name": "Nagan Chowrangi",
+          "latitude": 24.9781,
+          "longitude": 67.0741,
+          "availableRoutes": ["2", "3", "4"]
+        },
+        {
+          "stopId": "SFM",
+          "name": "Shafiq Mor",
+          "latitude": 24.9681,
+          "longitude": 67.0698,
+          "availableRoutes": ["2", "4"]
+        },
+        {
+          "stopId": "SGT",
+          "name": "Sohrab Goth",
+          "latitude": 24.9581,
+          "longitude": 67.0641,
+          "availableRoutes": ["2", "3", "4", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "WTP",
+          "name": "Water Pump",
+          "latitude": 24.9481,
+          "longitude": 67.0598,
+          "availableRoutes": ["4", "EV-4"]
+        },
+        {
+          "stopId": "AYM",
+          "name": "Ayesha Manzil",
+          "latitude": 24.9381,
+          "longitude": 67.0541,
+          "availableRoutes": ["4", "EV-4"]
+        },
+        {
+          "stopId": "KRM",
+          "name": "Karimabad",
+          "latitude": 24.9281,
+          "longitude": 67.0498,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "L10",
+          "name": "Liaquatabad 10",
+          "latitude": 24.9181,
+          "longitude": 67.0341,
+          "availableRoutes": ["3", "4"]
+        },
+        {
+          "stopId": "LLK",
+          "name": "Laloo Khait",
+          "latitude": 24.9081,
+          "longitude": 67.0298,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "THT",
+          "name": "Teen Hati",
+          "latitude": 24.8981,
+          "longitude": 67.0241,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "JHR",
+          "name": "Jehangir Road",
+          "latitude": 24.8881,
+          "longitude": 67.0198,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "NUM",
+          "name": "Numaish",
+          "latitude": 24.8781,
+          "longitude": 67.0141,
+          "availableRoutes": ["4", "10", "EV-3"]
+        },
+        {
+          "stopId": "MBM",
+          "name": "Mobile Market",
+          "latitude": 24.8681,
+          "longitude": 67.0098,
+          "availableRoutes": ["4", "10"]
+        },
+        {
+          "stopId": "URB",
+          "name": "Urdu Bazar",
+          "latitude": 24.8581,
+          "longitude": 67.0041,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "CVH",
+          "name": "Civil Hospital",
+          "latitude": 24.8481,
+          "longitude": 66.9998,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "CTC",
+          "name": "City Court",
+          "latitude": 24.8381,
+          "longitude": 66.9941,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "LGH",
+          "name": "Light House",
+          "latitude": 24.8281,
+          "longitude": 66.9898,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "BLM",
+          "name": "Bolton Market",
+          "latitude": 24.8181,
+          "longitude": 66.9841,
+          "availableRoutes": ["4"]
+        },
+        {
+          "stopId": "TWR",
+          "name": "Tower",
+          "latitude": 24.8132,
+          "longitude": 67.0152,
+          "availableRoutes": ["1", "4", "8", "9", "13"]
+        },
+        {
+          "stopId": "KMR",
+          "name": "Keamari",
+          "latitude": 24.8081,
+          "longitude": 66.9741,
+          "availableRoutes": ["4"]
+        }
+      ]
+    },
+    {
+      "routeId": "8",
+      "routeName": "Route 8",
+      "lengthKm": 17,
+      "phase": "Operational",
+      "fromTerminal": "Yousuf Goth",
+      "toTerminal": "Tower",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "YSG",
+          "name": "Yousuf Goth",
+          "latitude": 24.9432,
+          "longitude": 66.9652,
+          "availableRoutes": ["8"]
+        },
+        {
+          "stopId": "NVC",
+          "name": "Naval Colony",
+          "latitude": 24.9332,
+          "longitude": 66.9752,
+          "availableRoutes": ["8"]
+        },
+        {
+          "stopId": "BLD",
+          "name": "Baldia",
+          "latitude": 24.9232,
+          "longitude": 66.9852,
+          "availableRoutes": ["8"]
+        },
+        {
+          "stopId": "SHS",
+          "name": "Sher Shah",
+          "latitude": 24.9132,
+          "longitude": 66.9952,
+          "availableRoutes": ["8"]
+        },
+        {
+          "stopId": "GLB",
+          "name": "Gulbai",
+          "latitude": 24.9032,
+          "longitude": 67.0052,
+          "availableRoutes": ["8", "13"]
+        },
+        {
+          "stopId": "ATC",
+          "name": "Agra Taj Colony",
+          "latitude": 24.8932,
+          "longitude": 67.0152,
+          "availableRoutes": ["8", "11"]
+        },
+        {
+          "stopId": "DRY",
+          "name": "Daryabad",
+          "latitude": 24.8832,
+          "longitude": 67.0252,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "JNB",
+          "name": "Jinnah Bridge",
+          "latitude": 24.8732,
+          "longitude": 67.0352,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "TWR",
+          "name": "Tower",
+          "latitude": 24.8132,
+          "longitude": 67.0152,
+          "availableRoutes": ["1", "4", "8", "9", "13"]
+        }
+      ]
+    },
+    {
+      "routeId": "9",
+      "routeName": "Route 9",
+      "lengthKm": 42,
+      "phase": "Operational",
+      "fromTerminal": "Gulshan e Hadeed",
+      "toTerminal": "Tower",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "GEH",
+          "name": "Gulshan-e-Hadeed",
+          "latitude": 24.8532,
+          "longitude": 67.3452,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "SUR",
+          "name": "Salah Uddin Ayubi Road",
+          "latitude": 24.8582,
+          "longitude": 67.3352,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "AWC",
+          "name": "Allah Wali Chowrangi",
+          "latitude": 24.8632,
+          "longitude": 67.3252,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "NH5",
+          "name": "National Highway 5",
+          "latitude": 24.8682,
+          "longitude": 67.3152,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "SMM",
+          "name": "Steel Mill More",
+          "latitude": 24.8732,
+          "longitude": 67.3052,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "PBM",
+          "name": "Port Bin Qasim More",
+          "latitude": 24.8782,
+          "longitude": 67.2952,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "RZK",
+          "name": "Razzakabad",
+          "latitude": 24.8641822,
+          "longitude": 67.2926536,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "ABG",
+          "name": "Abdullah Goth",
+          "latitude": 24.8882,
+          "longitude": 67.2752,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "CKM",
+          "name": "Chowkundi More",
+          "latitude": 24.8932,
+          "longitude": 67.2652,
+          "availableRoutes": ["9"] 
+        },
+        {
+          "stopId": "FSU",
+          "name": "Fast National University",
+          "latitude": 24.85722,
+          "longitude": 67.26461,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "BCM",
+          "name": "Bhains Colony More",
+          "latitude": 24.9032,
+          "longitude": 67.2452,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "MPK",
+          "name": "Manzil Pump",
+          "latitude": 24.9082,
+          "longitude": 67.2352,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "QBD",
+          "name": "Quaidabad",
+          "latitude": 24.85950,
+          "longitude": 67.22825,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "MKN",
+          "name": "Murghi Khana",
+          "latitude": 24.9182,
+          "longitude": 67.2152,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "PAB",
+          "name": "Prince Aly Boys School",
+          "latitude": 24.9232,
+          "longitude": 67.2052,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "NCM",
+          "name": "Nadra Center Malir",
+          "latitude": 24.9282,
+          "longitude": 67.1952,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "MSC",
+          "name": "Malir Session Court",
+          "latitude": 24.9332,
+          "longitude": 67.1852,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "M15",
+          "name": "Malir 15",
+          "latitude": 24.9382,
+          "longitude": 67.1752,
+          "availableRoutes": ["9"]
+        },
+        {
+          "stopId": "KAL",
+          "name": "Kalaboard",
+          "latitude": 24.8789,
+          "longitude": 67.1652,
+          "availableRoutes": ["1", "12", "9"]
+        },
+        {
+          "stopId": "MHT",
+          "name": "Malir Halt",
+          "latitude": 24.8733,
+          "longitude": 67.1592,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "COL",
+          "name": "Colony Gate",
+          "latitude": 24.8683,
+          "longitude": 67.1523,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "NKB",
+          "name": "Nata Khan Bridge",
+          "latitude": 24.8621,
+          "longitude": 67.1432,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "DRS",
+          "name": "Drigh Road Station",
+          "latitude": 24.8582,
+          "longitude": 67.1352,
+          "availableRoutes": ["1", "2", "9"]
+        },
+        {
+          "stopId": "PAF",
+          "name": "PAF Base Faisal",
+          "latitude": 24.8532,
+          "longitude": 67.1242,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "LKT",
+          "name": "Laal Kothi",
+          "latitude": 24.8482,
+          "longitude": 67.1152,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "KRZ",
+          "name": "Karsaz",
+          "latitude": 24.8432,
+          "longitude": 67.1052,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "NUR",
+          "name": "Nursery",
+          "latitude": 24.8382,
+          "longitude": 67.0952,
+          "availableRoutes": ["1", "3", "9"]
+        },
+        {
+          "stopId": "FTC",
+          "name": "FTC",
+          "latitude": 24.8332,
+          "longitude": 67.0852,
+          "availableRoutes": ["1", "3", "9", "12"]
+        },
+        {
+          "stopId": "RPZ",
+          "name": "Regent Plaza",
+          "latitude": 24.8282,
+          "longitude": 67.0752,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "MET",
+          "name": "Metropole",
+          "latitude": 24.8232,
+          "longitude": 67.0652,
+          "availableRoutes": ["1", "9", "10"]
+        },
+        {
+          "stopId": "FCH",
+          "name": "Fawwara Chowk",
+          "latitude": 24.8182,
+          "longitude": 67.0552,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "ARC",
+          "name": "Arts Council",
+          "latitude": 24.8132,
+          "longitude": 67.0452,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "SHC",
+          "name": "Shaheen Complex",
+          "latitude": 24.8082,
+          "longitude": 67.0352,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "IIC",
+          "name": "I.I.Chundrigar",
+          "latitude": 24.8032,
+          "longitude": 67.0252,
+          "availableRoutes": ["1", "9"]
+        },
+        {
+          "stopId": "TWR",
+          "name": "Tower",
+          "latitude": 24.8132,
+          "longitude": 67.0152,
+          "availableRoutes": ["1", "4", "8", "9", "13"]
+        }
+      ]
+    },
+    {
+      "routeId": "10",
+      "routeName": "Route 10",
+      "lengthKm": 28,
+      "phase": "Operational",
+      "fromTerminal": "Numaish Chowrangi",
+      "toTerminal": "Ibrahim Hyderi",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "NUM",
+          "name": "Numaish",
+          "latitude": 24.8781,
+          "longitude": 67.0141,
+          "availableRoutes": ["4", "10", "EV-3"]
+        },
+        {
+          "stopId": "MBM",
+          "name": "Mobile Market",
+          "latitude": 24.8681,
+          "longitude": 67.0098,
+          "availableRoutes": ["4", "10"]
+        },
+        {
+          "stopId": "MET",
+          "name": "Metropole",
+          "latitude": 24.8232,
+          "longitude": 67.0652,
+          "availableRoutes": ["1", "9", "10"]
+        },
+        {
+          "stopId": "FRH",
+          "name": "Frere Hall",
+          "latitude": 24.8182,
+          "longitude": 67.0752,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "TTL",
+          "name": "Teen Talwar",
+          "latitude": 24.8132,
+          "longitude": 67.0852,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "DTL",
+          "name": "Do Talwar",
+          "latitude": 24.8082,
+          "longitude": 67.0952,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "ASG",
+          "name": "Abdullah Shah Ghazi",
+          "latitude": 24.8032,
+          "longitude": 67.1052,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "DMM",
+          "name": "Dolmen Mall",
+          "latitude": 24.7982,
+          "longitude": 67.1152,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "CTD",
+          "name": "Clock Tower DHA",
+          "latitude": 24.7932,
+          "longitude": 67.1252,
+          "availableRoutes": ["10", "EV-1"]
+        },
+        {
+          "stopId": "T26",
+          "name": "26 Street",
+          "latitude": 24.7882,
+          "longitude": 67.1352,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "MAY",
+          "name": "Masjid-e-Ayesha",
+          "latitude": 24.7832,
+          "longitude": 67.1452,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "RHP",
+          "name": "Rahat Park",
+          "latitude": 24.7782,
+          "longitude": 67.1552,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "KPT",
+          "name": "KPT Interchange",
+          "latitude": 24.8232,
+          "longitude": 67.1052,
+          "availableRoutes": ["3", "10", "11"]
+        },
+        {
+          "stopId": "KRC",
+          "name": "Korangi Crossing",
+          "latitude": 24.7732,
+          "longitude": 67.1652,
+          "availableRoutes": ["10", "12"]
+        },
+        {
+          "stopId": "CBM",
+          "name": "CBM University",
+          "latitude": 24.7682,
+          "longitude": 67.1752,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "PRC",
+          "name": "Parco",
+          "latitude": 24.7632,
+          "longitude": 67.1852,
+          "availableRoutes": ["10"]
+        },
+        {
+          "stopId": "IBH",
+          "name": "Ibrahim Hyderi",
+          "latitude": 24.7582,
+          "longitude": 67.1952,
+          "availableRoutes": ["10"]
+        }
+      ]
+    },
+    {
+      "routeId": "11",
+      "routeName": "Route 11",
+      "lengthKm": 19,
+      "phase": "Operational",
+      "fromTerminal": "Miran Nakka",
+      "toTerminal": "Shireen Jinnah Colony",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "MNK",
+          "name": "Miran Nakka",
+          "latitude": 24.9832,
+          "longitude": 67.0452,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "GLC",
+          "name": "Gulistan Colony",
+          "latitude": 24.9732,
+          "longitude": 67.0352,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "BHC",
+          "name": "Bihar Colony",
+          "latitude": 24.9632,
+          "longitude": 67.0252,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "ATC",
+          "name": "Agra Taj",
+          "latitude": 24.8932,
+          "longitude": 67.0152,
+          "availableRoutes": ["8", "11"]
+        },
+        {
+          "stopId": "DRY",
+          "name": "Daryabad",
+          "latitude": 24.8832,
+          "longitude": 67.0252,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "JNB",
+          "name": "Jinnah Bridge",
+          "latitude": 24.8732,
+          "longitude": 67.0352,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "BHC",
+          "name": "Bahria Complex",
+          "latitude": 24.8632,
+          "longitude": 67.0452,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "MTK",
+          "name": "M.T.Khan Road",
+          "latitude": 24.8532,
+          "longitude": 67.0552,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "PIC",
+          "name": "PICD",
+          "latitude": 24.8432,
+          "longitude": 67.0652,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "SBC",
+          "name": "Submarine Chowk",
+          "latitude": 24.8332,
+          "longitude": 67.0752,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "BC3",
+          "name": "Bahria Complex 3",
+          "latitude": 24.8232,
+          "longitude": 67.0852,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "KHM",
+          "name": "Khadda Market",
+          "latitude": 24.8132,
+          "longitude": 67.0952,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "ASG",
+          "name": "Abdullah Shah Ghazi",
+          "latitude": 24.8032,
+          "longitude": 67.1052,
+          "availableRoutes": ["10", "11"]
+        },
+        {
+          "stopId": "BLC",
+          "name": "Bilawal Chowrangi",
+          "latitude": 24.7932,
+          "longitude": 67.1152,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "ZIH",
+          "name": "Ziauddin Hospital",
+          "latitude": 24.7832,
+          "longitude": 67.1252,
+          "availableRoutes": ["11"]
+        },
+        {
+          "stopId": "SJC",
+          "name": "Shireen Jinnah Colony",
+          "latitude": 24.7732,
+          "longitude": 67.1352,
+          "availableRoutes": ["11"]
+        }
+      ]
+    },
+    {
+      "routeId": "12",
+      "routeName": "Route 12",
+      "lengthKm": 31,
+      "phase": "Operational",
+      "fromTerminal": "Naddi Kinara",
+      "toTerminal": "Lucky Star",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "NDK",
+          "name": "Naddi Kinara",
+          "latitude": 24.8937,
+          "longitude": 67.1882,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "KHO",
+          "name": "Khokrapar",
+          "latitude": 24.8937,
+          "longitude": 67.1882,
+          "availableRoutes": ["1", "12"]
+        },
+        {
+          "stopId": "SAC",
+          "name": "Saudabad Chowrangi",
+          "latitude": 24.8891,
+          "longitude": 67.1798,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "RCD",
+          "name": "RCD Ground",
+          "latitude": 24.8825,
+          "longitude": 67.1725,
+          "availableRoutes": ["1", "12"]
+        },
+        {
+          "stopId": "KAL",
+          "name": "Kalaboard",
+          "latitude": 24.8789,
+          "longitude": 67.1652,
+          "availableRoutes": ["1", "12"]
+        },
+        {
+          "stopId": "M15",
+          "name": "Malir 15",
+          "latitude": 24.9382,
+          "longitude": 67.1752,
+          "availableRoutes": ["9", "12"]
+        },
+        {
+          "stopId": "MMD",
+          "name": "Malir Mandir",
+          "latitude": 24.9432,
+          "longitude": 67.1852,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "MSC",
+          "name": "Malir Session Court",
+          "latitude": 24.9332,
+          "longitude": 67.1852,
+          "availableRoutes": ["9", "12"]
+        },
+        {
+          "stopId": "MKN",
+          "name": "Murghi Khana",
+          "latitude": 24.9182,
+          "longitude": 67.2152,
+          "availableRoutes": ["9", "12"]
+        },
+        {
+          "stopId": "QBD",
+          "name": "Quaidabad",
+          "latitude": 24.9132,
+          "longitude": 67.2252,
+          "availableRoutes": ["9", "12"]
+        },
+        {
+          "stopId": "DWC",
+          "name": "Dawood Chowrangi",
+          "latitude": 24.9082,
+          "longitude": 67.2352,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "BMR",
+          "name": "Babar Market",
+          "latitude": 24.9032,
+          "longitude": 67.2452,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "LDR",
+          "name": "Landhi Road",
+          "latitude": 24.8982,
+          "longitude": 67.2552,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "NSJ",
+          "name": "Nasir Jump",
+          "latitude": 24.8132,
+          "longitude": 67.1252,
+          "availableRoutes": ["3", "12"]
+        },
+        {
+          "stopId": "INH",
+          "name": "Indus Hospital",
+          "latitude": 24.8481,
+          "longitude": 67.1941,
+          "availableRoutes": ["2", "12"]
+        },
+        {
+          "stopId": "KRC",
+          "name": "Korangi Crossing",
+          "latitude": 24.7732,
+          "longitude": 67.1652,
+          "availableRoutes": ["10", "12"]
+        },
+        {
+          "stopId": "QYB",
+          "name": "Qayyumabad",
+          "latitude": 24.7682,
+          "longitude": 67.1752,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "DFM",
+          "name": "Defence Mor",
+          "latitude": 24.7632,
+          "longitude": 67.1852,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "NMC",
+          "name": "National Medical Center",
+          "latitude": 24.7582,
+          "longitude": 67.1952,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "GQB",
+          "name": "Gora Qabristan",
+          "latitude": 24.7532,
+          "longitude": 67.2052,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "FTC",
+          "name": "FTC",
+          "latitude": 24.8332,
+          "longitude": 67.0852,
+          "availableRoutes": ["1", "3", "9", "12"]
+        },
+        {
+          "stopId": "JTL",
+          "name": "Jutt Land",
+          "latitude": 24.7482,
+          "longitude": 67.2152,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "LNA",
+          "name": "Lines Area",
+          "latitude": 24.7432,
+          "longitude": 67.2252,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "APS",
+          "name": "Army Public School",
+          "latitude": 24.7382,
+          "longitude": 67.2352,
+          "availableRoutes": ["12"]
+        },
+        {
+          "stopId": "LSS",
+          "name": "Lucky Star Saddar",
+          "latitude": 24.7332,
+          "longitude": 67.2452,
+          "availableRoutes": ["12"]
+        }
+      ]
+    },
+    {
+      "routeId": "13",
+      "routeName": "Route 13",
+      "lengthKm": 20,
+      "phase": "Operational",
+      "fromTerminal": "Hawksbay",
+      "toTerminal": "Tower",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "HKB",
+          "name": "Hawksbay",
+          "latitude": 24.9432,
+          "longitude": 66.9652,
+          "availableRoutes": ["13"]
+        },
+        {
+          "stopId": "MRP",
+          "name": "Mauripur",
+          "latitude": 24.9332,
+          "longitude": 66.9752,
+          "availableRoutes": ["13"]
+        },
+        {
+          "stopId": "GLB",
+          "name": "Gulbai",
+          "latitude": 24.9032,
+          "longitude": 67.0052,
+          "availableRoutes": ["8", "13"]
+        },
+        {
+          "stopId": "ATC",
+          "name": "Agra Taj",
+          "latitude": 24.8932,
+          "longitude": 67.0152,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "DRY",
+          "name": "Daryabad",
+          "latitude": 24.8832,
+          "longitude": 67.0252,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "JNB",
+          "name": "Jinnah Bridge",
+          "latitude": 24.8732,
+          "longitude": 67.0352,
+          "availableRoutes": ["8", "11", "13"]
+        },
+        {
+          "stopId": "TWR",
+          "name": "Tower",
+          "latitude": 24.8132,
+          "longitude": 67.0152,
+          "availableRoutes": ["1", "4", "8", "9", "13"]
+        }
+      ]
+    },
+    {
+      "routeId": "EV-1",
+      "routeName": "EV Route 1",
+      "lengthKm": 28,
+      "phase": "Operational",
+      "fromTerminal": "Malir Cantt",
+      "toTerminal": "Dolmen Mall Clifton",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "MLC",
+          "name": "CMH Malir Cantt",
+          "latitude": 24.9132,
+          "longitude": 67.1752,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "TKC",
+          "name": "Tank Chowk",
+          "latitude": 24.9082,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "MCM",
+          "name": "Model Colony Mor",
+          "latitude": 24.9032,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "JAV",
+          "name": "Jinnah Ave",
+          "latitude": 24.8982,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "APT",
+          "name": "Airport",
+          "latitude": 24.8932,
+          "longitude": 67.2152,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "COL",
+          "name": "Colony Gate",
+          "latitude": 24.8683,
+          "longitude": 67.1523,
+          "availableRoutes": ["1", "2", "9", "EV-1"]
+        },
+        {
+          "stopId": "NKB",
+          "name": "Nata Khan Bridge",
+          "latitude": 24.8621,
+          "longitude": 67.1432,
+          "availableRoutes": ["1", "9", "EV-1"]
+        },
+        {
+          "stopId": "DRS",
+          "name": "Drigh Road Station",
+          "latitude": 24.8582,
+          "longitude": 67.1352,
+          "availableRoutes": ["1", "2", "9", "EV-1"]
+        },
+        {
+          "stopId": "PAF",
+          "name": "PAF Base Faisal",
+          "latitude": 24.8532,
+          "longitude": 67.1242,
+          "availableRoutes": ["1", "9", "EV-1"]
+        },
+        {
+          "stopId": "LKT",
+          "name": "Laal Kothi",
+          "latitude": 24.8482,
+          "longitude": 67.1152,
+          "availableRoutes": ["1", "9", "EV-1"]
+        },
+        {
+          "stopId": "KRZ",
+          "name": "Karsaz",
+          "latitude": 24.8432,
+          "longitude": 67.1052,
+          "availableRoutes": ["1", "3", "9", "EV-1"]
+        },
+        {
+          "stopId": "NUR",
+          "name": "Nursery",
+          "latitude": 24.8382,
+          "longitude": 67.0952,
+          "availableRoutes": ["1", "3", "9", "EV-1"]
+        },
+        {
+          "stopId": "FTC",
+          "name": "FTC",
+          "latitude": 24.8332,
+          "longitude": 67.0852,
+          "availableRoutes": ["1", "3", "9", "12", "EV-1"]
+        },
+        {
+          "stopId": "KOR",
+          "name": "Korangi Road",
+          "latitude": 24.8282,
+          "longitude": 67.0952,
+          "availableRoutes": ["3", "10", "EV-1"]
+        },
+        {
+          "stopId": "DHA",
+          "name": "DHA Phase 1",
+          "latitude": 24.8232,
+          "longitude": 67.1052,
+          "availableRoutes": ["EV-1"]
+        },
+        {
+          "stopId": "MAY",
+          "name": "Masjid e Ayesha",
+          "latitude": 24.7832,
+          "longitude": 67.1452,
+          "availableRoutes": ["10", "EV-1"]
+        },
+        {
+          "stopId": "CTD",
+          "name": "Clock Tower DHA",
+          "latitude": 24.7932,
+          "longitude": 67.1252,
+          "availableRoutes": ["10", "EV-1"]
+        },
+        {
+          "stopId": "DMM",
+          "name": "Dolmen Mall Clifton",
+          "latitude": 24.7982,
+          "longitude": 67.1152,
+          "availableRoutes": ["EV-1"]
+        }
+      ]
+    },
+    {
+      "routeId": "EV-2",
+      "routeName": "EV Route 2",
+      "lengthKm": 30,
+      "phase": "Operational",
+      "fromTerminal": "Bahria Town",
+      "toTerminal": "Malir Halt",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "BHT",
+          "name": "Bahria Town",
+          "latitude": 24.9532,
+          "longitude": 67.2252,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "DGT",
+          "name": "Dumba Goth",
+          "latitude": 24.9432,
+          "longitude": 67.2152,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "TPL",
+          "name": "Toll Plaza",
+          "latitude": 24.9332,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-2"]
+        },
+        {
+          "stopId": "BQU",
+          "name": "Baqai University",
+          "latitude": 24.9232,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-2"]
+        },
+        {
+          "stopId": "MCG5",
+          "name": "Malir Cantt Gate 5",
+          "latitude": 24.9132,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-2"]
+        },
+        {
+          "stopId": "MCG6",
+          "name": "Malir Cantt Gate 6",
+          "latitude": 24.9032,
+          "longitude": 67.1752,
+          "availableRoutes": ["EV-2"]
+        },
+        {
+          "stopId": "TKC",
+          "name": "Tank Chowk",
+          "latitude": 24.9082,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-1", "EV-2"]
+        },
+        {
+          "stopId": "MCM",
+          "name": "Model Mor",
+          "latitude": 24.9032,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-1", "EV-2"]
+        },
+        {
+          "stopId": "JAV",
+          "name": "Jinnah Ave",
+          "latitude": 24.8982,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-1", "EV-2"]
+        },
+        {
+          "stopId": "MHT",
+          "name": "Malir Halt",
+          "latitude": 24.8733,
+          "longitude": 67.1592,
+          "availableRoutes": ["1", "9", "EV-2"]
+        }
+      ]
+    },
+    {
+      "routeId": "EV-3",
+      "routeName": "EV Route 3",
+      "lengthKm": 20,
+      "phase": "Operational",
+      "fromTerminal": "Malir Cantt Check Post 5",
+      "toTerminal": "Numaish",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "MCP5",
+          "name": "Malir Cantt Check Post 5",
+          "latitude": 24.9132,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "RJT",
+          "name": "Rim Jhim Tower",
+          "latitude": 24.9032,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "SFC",
+          "name": "Safoora Chowrangi",
+          "latitude": 24.8932,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "MSC",
+          "name": "Mausamiyat Chowrangi",
+          "latitude": 24.8832,
+          "longitude": 67.1752,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "KMC",
+          "name": "Kamran Chowrangi",
+          "latitude": 24.8732,
+          "longitude": 67.1652,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "DSH",
+          "name": "Darul Sehat Hospital",
+          "latitude": 24.8632,
+          "longitude": 67.1552,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "JHC",
+          "name": "Johar Chowrangi",
+          "latitude": 24.8532,
+          "longitude": 67.1452,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "JHM",
+          "name": "Johar Mor",
+          "latitude": 24.9081,
+          "longitude": 67.0941,
+          "availableRoutes": ["2", "EV-3"]
+        },
+        {
+          "stopId": "MML",
+          "name": "Millennium Mall",
+          "latitude": 24.8932,
+          "longitude": 67.0841,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "DLM",
+          "name": "Dalmia Road",
+          "latitude": 24.8832,
+          "longitude": 67.0741,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "BHU",
+          "name": "Bahria University",
+          "latitude": 24.8732,
+          "longitude": 67.0641,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "NST",
+          "name": "National Stadium",
+          "latitude": 24.8881,
+          "longitude": 67.0198,
+          "availableRoutes": ["3", "EV-3"]
+        },
+        {
+          "stopId": "AKH",
+          "name": "Aga Khan Hospital",
+          "latitude": 24.8832,
+          "longitude": 67.0441,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "LNH",
+          "name": "Liaquat National Hospital",
+          "latitude": 24.8732,
+          "longitude": 67.0341,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "PIB",
+          "name": "PIB Colony",
+          "latitude": 24.8632,
+          "longitude": 67.0241,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "JLC",
+          "name": "Jail Chowrangi",
+          "latitude": 24.8532,
+          "longitude": 67.0141,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "DEU",
+          "name": "Dawood Engineering University",
+          "latitude": 24.8432,
+          "longitude": 67.0041,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "ISC",
+          "name": "Islamia College",
+          "latitude": 24.8332,
+          "longitude": 66.9941,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "PSC",
+          "name": "People Secretariat Chowrangi",
+          "latitude": 24.8232,
+          "longitude": 66.9841,
+          "availableRoutes": ["EV-3"]
+        },
+        {
+          "stopId": "NUM",
+          "name": "Numaish",
+          "latitude": 24.8781,
+          "longitude": 67.0141,
+          "availableRoutes": ["4", "10", "EV-3"]
+        }
+      ]
+    },
+    {
+      "routeId": "EV-4",
+      "routeName": "EV Route 4",
+      "lengthKm": 34,
+      "phase": "Operational",
+      "fromTerminal": "Bahria Town",
+      "toTerminal": "Ayesha Manzil",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "BHT",
+          "name": "Bahria Town",
+          "latitude": 24.9532,
+          "longitude": 67.2252,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "DGT",
+          "name": "Dumba Goth",
+          "latitude": 24.9432,
+          "longitude": 67.2152,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "M9T",
+          "name": "M9 Toll Plaza",
+          "latitude": 24.9332,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "JMP",
+          "name": "Jamali Pull",
+          "latitude": 24.9232,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "NSM",
+          "name": "New Sabzi Mandi",
+          "latitude": 24.9132,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "ALA",
+          "name": "Al Asif",
+          "latitude": 24.9032,
+          "longitude": 67.1752,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "SGT",
+          "name": "Sohrab Goth",
+          "latitude": 24.9581,
+          "longitude": 67.0641,
+          "availableRoutes": ["2", "3", "4", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "WTP",
+          "name": "Water Pump",
+          "latitude": 24.9481,
+          "longitude": 67.0598,
+          "availableRoutes": ["4", "EV-4"]
+        },
+        {
+          "stopId": "AYM",
+          "name": "Ayesha Manzil",
+          "latitude": 24.9381,
+          "longitude": 67.0541,
+          "availableRoutes": ["4", "EV-4"]
+        }
+      ]
+    },
+    {
+      "routeId": "EV-5",
+      "routeName": "EV Route 5",
+      "lengthKm": 41,
+      "phase": "Operational",
+      "fromTerminal": "DHA City",
+      "toTerminal": "Sohrab Goth",
+      "baseFare": 120.0,
+      "stops": [
+        {
+          "stopId": "DHC",
+          "name": "DHA City",
+          "latitude": 24.9632,
+          "longitude": 67.2352,
+          "availableRoutes": ["EV-5"]
+        },
+        {
+          "stopId": "BHT",
+          "name": "Bahria Town",
+          "latitude": 24.9532,
+          "longitude": 67.2252,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "DGT",
+          "name": "Dumba Goth",
+          "latitude": 24.9432,
+          "longitude": 67.2152,
+          "availableRoutes": ["EV-2", "EV-4", "EV-5"]
+        },
+        {
+          "stopId": "M9T",
+          "name": "M9 Toll Plaza",
+          "latitude": 24.9332,
+          "longitude": 67.2052,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "JMP",
+          "name": "Jamali Pull",
+          "latitude": 24.9232,
+          "longitude": 67.1952,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "NSM",
+          "name": "New Sabzi Mandi",
+          "latitude": 24.9132,
+          "longitude": 67.1852,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "ALA",
+          "name": "Al Asif",
+          "latitude": 24.9032,
+          "longitude": 67.1752,
+          "availableRoutes": ["EV-4", "EV-5"]
+        },
+        {
+          "stopId": "SGT",
+          "name": "Sohrab Goth",
+          "latitude": 24.9581,
+          "longitude": 67.0641,
+          "availableRoutes": ["2", "3", "4", "EV-4", "EV-5"]
+        }
+      ]
+    }
+  ]
+} 

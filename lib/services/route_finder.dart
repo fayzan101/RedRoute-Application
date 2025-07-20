@@ -24,7 +24,78 @@ class RouteFinder extends ChangeNotifier {
     
     print('🚌 RouteFinder: Starting route search from (${userLat.toStringAsFixed(4)}, ${userLng.toStringAsFixed(4)}) to (${destLat.toStringAsFixed(4)}, ${destLng.toStringAsFixed(4)})');
     
-    // Find nearest stop to destination
+    // Debug: Check if destination might be Fast University
+    if (destLat >= 24.85 && destLat <= 24.87 && destLng >= 67.26 && destLng <= 67.27) {
+      print('🎓 RouteFinder: Destination coordinates suggest Fast University area');
+    }
+    
+    // Debug: Show user's current location context
+    print('📍 RouteFinder: User is at coordinates (${userLat.toStringAsFixed(6)}, ${userLng.toStringAsFixed(6)})');
+    print('🎯 RouteFinder: Destination is at coordinates (${destLat.toStringAsFixed(6)}, ${destLng.toStringAsFixed(6)})');
+    
+    // Calculate direct distance between user and destination
+    final directDistance = DistanceCalculator.calculateDistance(userLat, userLng, destLat, destLng);
+    print('📏 RouteFinder: Direct distance from user to destination: ${DistanceCalculator.formatDistance(directDistance)}');
+    
+    // Test distance calculation with known coordinates
+    final testDistance = DistanceCalculator.calculateDistance(24.8607, 67.0011, 24.8571541, 67.2645918);
+    print('🧪 RouteFinder: Test distance (Karachi center to Fast University): ${DistanceCalculator.formatDistance(testDistance)}');
+    
+    // Check if user location seems reasonable (within Karachi bounds)
+    if (userLat < 24.7 || userLat > 25.2 || userLng < 66.8 || userLng > 67.5) {
+      print('⚠️ RouteFinder: WARNING - User location seems outside Karachi bounds!');
+      print('   Expected: lat 24.7-25.2, lng 66.8-67.5');
+      print('   Actual: lat $userLat, lng $userLng');
+    }
+    
+    // Check if destination is at a bus stop (within 50 meters)
+    final destinationStop = _findExactBusStop(destLat, destLng, stops);
+    if (destinationStop != null) {
+      print('🎯 RouteFinder: Destination is at bus stop: ${destinationStop.name} (${destinationStop.routes.join(', ')})');
+      
+      // Find best boarding stop for user to reach this exact destination stop
+      final bestBoardingStop = _findBestBoardingStop(
+        userLat,
+        userLng,
+        destinationStop,
+        stops,
+      );
+      
+      if (bestBoardingStop != null && bestBoardingStop.id != destinationStop.id) {
+        print('🚏 RouteFinder: Best boarding stop: ${bestBoardingStop.name} (${bestBoardingStop.routes.join(', ')})');
+        
+        // Create journey to the exact destination stop
+        final journey = await _createEnhancedJourney(
+          userLat: userLat,
+          userLng: userLng,
+          destLat: destLat,
+          destLng: destLng,
+          boardingStop: bestBoardingStop,
+          destinationStop: destinationStop,
+        );
+        
+        if (journey != null) {
+          print('✅ RouteFinder: Journey created successfully to exact destination stop');
+          print('   - Boarding: ${journey.startStop.name}');
+          print('   - Destination: ${journey.endStop.name} (EXACT STOP)');
+          print('   - Routes: ${journey.routes.map((r) => r.name).join(', ')}');
+          print('   - Total distance: ${DistanceCalculator.formatDistance(journey.totalDistance)}');
+        }
+        
+        return journey;
+      } else if (bestBoardingStop != null && bestBoardingStop.id == destinationStop.id) {
+        print('🚶 RouteFinder: User is already at destination stop. Suggesting walking.');
+        return _createWalkingOnlyJourney(
+          userLat: userLat,
+          userLng: userLng,
+          destLat: destLat,
+          destLng: destLng,
+          destinationStop: destinationStop,
+        );
+      }
+    }
+    
+    // If destination is not at a bus stop, find nearest stop to destination
     final nearestToDestination = _findNearestStop(destLat, destLng, stops);
     if (nearestToDestination == null) return null;
     
@@ -85,7 +156,66 @@ class RouteFinder extends ChangeNotifier {
     final stops = _dataService.stops;
     if (stops.isEmpty) return [];
     
-    // Find nearest stop to destination
+    // Check if destination is at a bus stop (within 50 meters)
+    final destinationStop = _findExactBusStop(destLat, destLng, stops);
+    if (destinationStop != null) {
+      print('🎯 RouteFinder: Destination is at bus stop: ${destinationStop.name} (${destinationStop.routes.join(', ')})');
+      
+      // Find all viable boarding stops that can reach this exact destination stop
+      final viableStops = stops.where((stop) {
+        return stop.routes.any((route) => destinationStop.routes.contains(route));
+      }).toList();
+      
+      if (viableStops.isEmpty) {
+        // If no direct route, find transfer options
+        final transferStop = _findTransferRoute(userLat, userLng, destinationStop, stops);
+        if (transferStop != null) {
+          final journey = await _createEnhancedJourney(
+            userLat: userLat,
+            userLng: userLng,
+            destLat: destLat,
+            destLng: destLng,
+            boardingStop: transferStop,
+            destinationStop: destinationStop,
+          );
+          return journey != null ? [journey] : [];
+        }
+        return [];
+      }
+      
+      // Get multiple route options to the exact destination stop
+      final routeOptions = _getMultipleRouteOptions(
+        userLat, userLng, destinationStop, viableStops, maxRoutes
+      );
+      
+      List<Journey> journeys = [];
+      
+      for (final option in routeOptions) {
+        final journey = await _createEnhancedJourney(
+          userLat: userLat,
+          userLng: userLng,
+          destLat: destLat,
+          destLng: destLng,
+          boardingStop: option['stop'] as Stop,
+          destinationStop: destinationStop,
+        );
+        
+        if (journey != null) {
+          journeys.add(journey);
+        }
+      }
+      
+      // Sort journeys by total time
+      journeys.sort((a, b) {
+        final timeA = _calculateTotalJourneyTime(a);
+        final timeB = _calculateTotalJourneyTime(b);
+        return timeA.compareTo(timeB);
+      });
+      
+      return journeys.take(maxRoutes).toList();
+    }
+    
+    // If destination is not at a bus stop, find nearest stop to destination
     final nearestToDestination = _findNearestStop(destLat, destLng, stops);
     if (nearestToDestination == null) return [];
     
@@ -126,10 +256,10 @@ class RouteFinder extends ChangeNotifier {
         destLng: destLng,
         boardingStop: option['stop'] as Stop,
         destinationStop: nearestToDestination,
-        );
-        
-        if (journey != null) {
-          journeys.add(journey);
+      );
+      
+      if (journey != null) {
+        journeys.add(journey);
       }
     }
     
@@ -163,55 +293,83 @@ class RouteFinder extends ChangeNotifier {
       }
     }
     
-    // For each route, find the best boarding stop
-    final List<Map<String, dynamic>> routeOptions = [];
+    // Use the same priority-based approach as single route finding
+    final List<Map<String, dynamic>> allRouteOptions = [];
     
-    for (final entry in routeGroups.entries) {
-      final routeName = entry.key;
-      final stopsOnRoute = entry.value;
+    // PRIORITY 1: Find routes that go directly to destination or very close to it
+    final directRouteOptions = _findDirectRouteOptions(
+      userLat, userLng, destinationStop, routeGroups
+    );
+    allRouteOptions.addAll(directRouteOptions);
+    
+    // PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
+    final proximityRouteOptions = _findProximityBasedRouteOptions(
+      userLat, userLng, destinationStop, routeGroups
+    );
+    allRouteOptions.addAll(proximityRouteOptions);
+    
+    // Sort by priority and score
+    allRouteOptions.sort((a, b) {
+      // First sort by priority (exact_destination > very_close > close > proximity)
+      final priorityA = a['priority'] as String;
+      final priorityB = b['priority'] as String;
       
-      // Find the best stop on this route
-      Stop? bestStopOnRoute;
-      double bestScore = double.infinity;
-      
-      for (final stop in stopsOnRoute) {
-        final distanceToUser = DistanceCalculator.calculateDistance(
-          userLat, userLng, stop.lat, stop.lng
-        );
-        
-        final distanceToDestination = DistanceCalculator.calculateDistance(
-          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-        );
-        
-        // Score based on: 70% route efficiency + 30% accessibility
-        final routeEfficiency = distanceToDestination / 1000;
-        final accessibility = distanceToUser / 1000;
-        final score = (routeEfficiency * 0.7) + (accessibility * 0.3);
-        
-        if (score < bestScore) {
-          bestScore = score;
-          bestStopOnRoute = stop;
-        }
+      if (priorityA != priorityB) {
+        if (priorityA == 'exact_destination') return -1;
+        if (priorityB == 'exact_destination') return 1;
+        if (priorityA == 'very_close') return -1;
+        if (priorityB == 'very_close') return 1;
+        if (priorityA == 'close') return -1;
+        if (priorityB == 'close') return 1;
       }
       
-      if (bestStopOnRoute != null) {
-        routeOptions.add({
-          'route': routeName,
-          'stop': bestStopOnRoute,
-          'score': bestScore,
-          'distanceToUser': DistanceCalculator.calculateDistance(
-            userLat, userLng, bestStopOnRoute.lat, bestStopOnRoute.lng
-          ),
-          'distanceToDestination': DistanceCalculator.calculateDistance(
-            bestStopOnRoute.lat, bestStopOnRoute.lng, destinationStop.lat, destinationStop.lng
-          ),
-        });
+      // Then sort by score within same priority
+      return a['score'].compareTo(b['score']);
+    });
+    
+    // Remove duplicates (same route) and return top options
+    final Map<String, Map<String, dynamic>> uniqueRoutes = {};
+    for (final option in allRouteOptions) {
+      final routeName = option['route'] as String;
+      if (!uniqueRoutes.containsKey(routeName)) {
+        uniqueRoutes[routeName] = option;
       }
     }
     
-    // Sort by score and return top options
-    routeOptions.sort((a, b) => a['score'].compareTo(b['score']));
-    return routeOptions.take(maxOptions).toList();
+    return uniqueRoutes.values.take(maxOptions).toList();
+  }
+  
+  /// Check if destination is exactly at a bus stop (within 100 meters)
+  Stop? _findExactBusStop(double lat, double lng, List<Stop> stops) {
+    if (stops.isEmpty) return null;
+    
+    const double exactStopThreshold = 100; // 100 meters - destination is at this bus stop
+    
+    for (final stop in stops) {
+      try {
+        final distance = DistanceCalculator.calculateDistance(
+          lat,
+          lng,
+          stop.lat,
+          stop.lng,
+        );
+        
+        // Debug: Print distance to Fast University specifically
+        if (stop.name.toLowerCase().contains('fast') || stop.name.toLowerCase().contains('university')) {
+          print('🎓 RouteFinder: Distance to ${stop.name}: ${DistanceCalculator.formatDistance(distance)}');
+        }
+        
+        if (distance <= exactStopThreshold) {
+          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (distance: ${DistanceCalculator.formatDistance(distance)})');
+          return stop;
+        }
+      } catch (e) {
+        // Skip invalid stop data
+        continue;
+      }
+    }
+    
+    return null;
   }
   
   Stop? _findNearestStop(double lat, double lng, List<Stop> stops) {
@@ -266,9 +424,18 @@ class RouteFinder extends ChangeNotifier {
     List<Stop> allStops,
   ) {
     // Find stops that share routes with destination stop
+    print('🎯 RouteFinder: Finding stops that can reach destination: ${destinationStop.name}');
+    print('🎯 RouteFinder: Destination routes: ${destinationStop.routes.join(', ')}');
+    
     final viableStops = allStops.where((stop) {
-      return stop.routes.any((route) => destinationStop.routes.contains(route));
+      final hasCommonRoute = stop.routes.any((route) => destinationStop.routes.contains(route));
+      if (hasCommonRoute) {
+        print('   ✅ ${stop.name}: Can reach destination via routes: ${stop.routes.where((route) => destinationStop.routes.contains(route)).join(', ')}');
+      }
+      return hasCommonRoute;
     }).toList();
+    
+    print('🎯 RouteFinder: Found ${viableStops.length} stops that can reach destination');
     
     if (viableStops.isEmpty) {
       // If no direct route, find transfer options
@@ -301,105 +468,251 @@ class RouteFinder extends ChangeNotifier {
       }
     }
     
-    // For each route, find the best boarding stop
-    final List<Map<String, dynamic>> routeOptions = [];
-    
     print('🛣️ RouteFinder: Analyzing ${routeGroups.length} routes to destination');
     
-    for (final entry in routeGroups.entries) {
-      final routeName = entry.key;
-      final stopsOnRoute = entry.value;
+    // PRIORITY 1: Find routes that go directly to destination or very close to it
+    final directRouteOptions = _findDirectRouteOptions(
+      userLat, userLng, destinationStop, routeGroups
+    );
+    
+    if (directRouteOptions.isNotEmpty) {
+      print('🎯 RouteFinder: Found ${directRouteOptions.length} direct route options');
+      final bestDirectOption = directRouteOptions.first;
+      print('🚌 RouteFinder: Selected direct route: ${bestDirectOption['route']} '
+            'from ${bestDirectOption['stop'].name} '
+            '(User distance: ${DistanceCalculator.formatDistance(bestDirectOption['distanceToUser'])}, '
+            'Destination proximity: ${DistanceCalculator.formatDistance(bestDirectOption['distanceToDestination'])})');
       
-      print('   📍 Route $routeName: ${stopsOnRoute.length} stops available');
+      // Show why this stop was chosen
+      print('✅ RouteFinder: Chose ${bestDirectOption['stop'].name} because it\'s the ${bestDirectOption['priority']} option with best user proximity');
       
-      // Find the best stop on this route (considering both distance to user and route efficiency)
-      Stop? bestStopOnRoute;
-      double bestScore = double.infinity;
-      
-      for (final stop in stopsOnRoute) {
-        // Skip if this is the same as the destination stop (no bus journey needed)
-        if (stop.id == destinationStop.id) {
-          print('      ⏭️ Skipping ${stop.name} - same as destination stop');
-          continue;
-        }
-        
-        // Calculate distance from user to this stop (with road network adjustment)
-        final distanceToUser = DistanceCalculator.calculateDistance(
-          userLat, userLng, stop.lat, stop.lng
-        );
-        
-        // Calculate distance from this stop to destination stop (with road network adjustment)
-        final distanceToDestination = DistanceCalculator.calculateDistance(
-          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-        );
-        
-        // Score based on: 70% route efficiency (shorter bus journey) + 30% accessibility (distance to user)
-        // Lower score is better
-        final routeEfficiency = distanceToDestination / 1000; // Convert to km for better scaling
-        final accessibility = distanceToUser / 1000; // Convert to km for better scaling
-        final score = (routeEfficiency * 0.7) + (accessibility * 0.3);
-        
-        print('      🚏 ${stop.name}: User distance ${DistanceCalculator.formatDistance(distanceToUser)}, '
-              'Route distance ${DistanceCalculator.formatDistance(distanceToDestination)}, '
-              'Score ${score.toStringAsFixed(2)}');
-        
-        if (score < bestScore) {
-          bestScore = score;
-          bestStopOnRoute = stop;
-        }
-      }
-      
-      if (bestStopOnRoute != null) {
-        routeOptions.add({
-          'route': routeName,
-          'stop': bestStopOnRoute,
-          'score': bestScore,
-          'distanceToUser': DistanceCalculator.calculateDistance(
-            userLat, userLng, bestStopOnRoute.lat, bestStopOnRoute.lng
-          ),
-          'distanceToDestination': DistanceCalculator.calculateDistance(
-            bestStopOnRoute.lat, bestStopOnRoute.lng, destinationStop.lat, destinationStop.lng
-          ),
-        });
-        
-        print('      ✅ Best on $routeName: ${bestStopOnRoute.name} (Score: ${bestScore.toStringAsFixed(2)})');
-      }
+      return bestDirectOption['stop'] as Stop;
     }
     
-    // Sort by score (best first)
-    routeOptions.sort((a, b) => a['score'].compareTo(b['score']));
+    // PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
+    print('📍 RouteFinder: No direct routes found, using proximity-based approach');
+    final proximityRouteOptions = _findProximityBasedRouteOptions(
+      userLat, userLng, destinationStop, routeGroups
+    );
     
-    print('🏆 RouteFinder: Route options ranked by score:');
-    for (int i = 0; i < routeOptions.length; i++) {
-      final option = routeOptions[i];
-      print('   ${i + 1}. ${option['route']} from ${option['stop'].name} '
-            '(Score: ${option['score'].toStringAsFixed(2)})');
-    }
-    
-    // Return the best option
-    if (routeOptions.isNotEmpty) {
-      print('🚌 RouteFinder: Selected best route: ${routeOptions.first['route']} '
-            'from ${routeOptions.first['stop'].name} '
-            '(Score: ${routeOptions.first['score'].toStringAsFixed(2)}, '
-            'User distance: ${DistanceCalculator.formatDistance(routeOptions.first['distanceToUser'])}, '
-            'Route distance: ${DistanceCalculator.formatDistance(routeOptions.first['distanceToDestination'])})');
+    if (proximityRouteOptions.isNotEmpty) {
+      final bestProximityOption = proximityRouteOptions.first;
+      print('🚌 RouteFinder: Selected proximity-based route: ${bestProximityOption['route']} '
+            'from ${bestProximityOption['stop'].name} '
+            '(User distance: ${DistanceCalculator.formatDistance(bestProximityOption['distanceToUser'])}, '
+            'Destination distance: ${DistanceCalculator.formatDistance(bestProximityOption['distanceToDestination'])})');
       
-      return routeOptions.first['stop'] as Stop;
+      // Show why this stop was chosen
+      print('✅ RouteFinder: Chose ${bestProximityOption['stop'].name} because it\'s the closest stop to user (${bestProximityOption['priority']} priority)');
+      
+      return bestProximityOption['stop'] as Stop;
     }
     
-    // Check if destination is very close to a BRT stop (within 500m)
+    // Fallback: Check if destination is very close to a BRT stop (within 500m)
     final distanceToDestinationStop = DistanceCalculator.calculateDistance(
       userLat, userLng, destinationStop.lat, destinationStop.lng
     );
     
     if (distanceToDestinationStop < 500) {
       print('🚶 RouteFinder: Destination is very close to BRT stop (${DistanceCalculator.formatDistance(distanceToDestinationStop)}). Suggesting walking instead of bus.');
-      // Return null to indicate walking is better than bus
       return null;
     }
     
-    // Fallback to nearest viable stop if no route-based option found
-    return _findNearestStop(userLat, userLng, viableStops);
+    return null;
+  }
+  
+  /// PRIORITY 1: Find routes that go directly to destination or very close to it
+  List<Map<String, dynamic>> _findDirectRouteOptions(
+    double userLat,
+    double userLng,
+    Stop destinationStop,
+    Map<String, List<Stop>> routeGroups,
+  ) {
+    final List<Map<String, dynamic>> directOptions = [];
+    const double veryCloseThreshold = 1000; // 1km - very close to destination
+    const double closeThreshold = 2000; // 2km - close to destination
+    
+    for (final entry in routeGroups.entries) {
+      final routeName = entry.key;
+      final stopsOnRoute = entry.value;
+      
+      print('   📍 Route $routeName: Finding closest stop to user that goes to destination');
+      
+      // Find the stop CLOSEST TO USER on this route that goes to destination
+      Stop? closestStopToUser;
+      double minDistanceToUser = double.infinity;
+      
+      for (final stop in stopsOnRoute) {
+        // Skip if this is the same as the destination stop
+        if (stop.id == destinationStop.id) {
+          print('      ⏭️ Skipping ${stop.name} - same as destination stop');
+          continue;
+        }
+        
+        // Calculate distance from this stop to destination
+        final distanceToDestination = DistanceCalculator.calculateDistance(
+          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
+        );
+        
+        // Calculate distance from user to this stop
+        final distanceToUser = DistanceCalculator.calculateDistance(
+          userLat, userLng, stop.lat, stop.lng
+        );
+        
+        // Check if this route goes directly to the destination stop (0 distance)
+        if (distanceToDestination == 0) {
+          // This stop goes directly to destination - check if it's closest to user
+          if (distanceToUser < minDistanceToUser) {
+            minDistanceToUser = distanceToUser;
+            closestStopToUser = stop;
+          }
+          print('      🎯 ${stop.name}: EXACT DESTINATION STOP (${DistanceCalculator.formatDistance(distanceToDestination)}) - User distance: ${DistanceCalculator.formatDistance(distanceToUser)}');
+        }
+        // Check if this route goes very close to destination
+        else if (distanceToDestination <= veryCloseThreshold) {
+          // This stop goes very close to destination - check if it's closest to user
+          if (distanceToUser < minDistanceToUser) {
+            minDistanceToUser = distanceToUser;
+            closestStopToUser = stop;
+          }
+          print('      🎯 ${stop.name}: VERY CLOSE to destination (${DistanceCalculator.formatDistance(distanceToDestination)}) - User distance: ${DistanceCalculator.formatDistance(distanceToUser)}');
+        }
+        // Check if this route goes close to destination
+        else if (distanceToDestination <= closeThreshold) {
+          // This stop goes close to destination - check if it's closest to user
+          if (distanceToUser < minDistanceToUser) {
+            minDistanceToUser = distanceToUser;
+            closestStopToUser = stop;
+          }
+          print('      🎯 ${stop.name}: CLOSE to destination (${DistanceCalculator.formatDistance(distanceToDestination)}) - User distance: ${DistanceCalculator.formatDistance(distanceToUser)}');
+        }
+        // Debug: Print info for Fast University specifically
+        else if (destinationStop.name.toLowerCase().contains('fast') || destinationStop.name.toLowerCase().contains('university')) {
+          print('      🔍 ${stop.name} -> ${destinationStop.name}: ${DistanceCalculator.formatDistance(distanceToDestination)} - User distance: ${DistanceCalculator.formatDistance(distanceToUser)}');
+        }
+      }
+      
+      // Add the CLOSEST stop to user on this route (if any found)
+      if (closestStopToUser != null) {
+        final distanceToDestination = DistanceCalculator.calculateDistance(
+          closestStopToUser.lat, closestStopToUser.lng, destinationStop.lat, destinationStop.lng
+        );
+        
+        String priority;
+        if (distanceToDestination == 0) {
+          priority = 'exact_destination';
+        } else if (distanceToDestination <= veryCloseThreshold) {
+          priority = 'very_close';
+        } else {
+          priority = 'close';
+        }
+        
+        directOptions.add({
+          'route': routeName,
+          'stop': closestStopToUser,
+          'score': minDistanceToUser, // Score is distance to user (lower is better)
+          'distanceToUser': minDistanceToUser,
+          'distanceToDestination': distanceToDestination,
+          'priority': priority,
+        });
+        
+        print('      ✅ Route $routeName: Closest stop to user is ${closestStopToUser.name} (${DistanceCalculator.formatDistance(minDistanceToUser)} from user)');
+      }
+    }
+    
+    // Sort by priority first, then by distance to user (closest first)
+    directOptions.sort((a, b) {
+      // First sort by priority (exact_destination > very_close > close)
+      final priorityA = a['priority'] as String;
+      final priorityB = b['priority'] as String;
+      if (priorityA != priorityB) {
+        if (priorityA == 'exact_destination') return -1;
+        if (priorityB == 'exact_destination') return 1;
+        if (priorityA == 'very_close') return -1;
+        if (priorityB == 'very_close') return 1;
+      }
+      // Then sort by distance to user (closest first)
+      return a['distanceToUser'].compareTo(b['distanceToUser']);
+    });
+    
+    return directOptions;
+  }
+  
+  /// PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
+  List<Map<String, dynamic>> _findProximityBasedRouteOptions(
+    double userLat,
+    double userLng,
+    Stop destinationStop,
+    Map<String, List<Stop>> routeGroups,
+  ) {
+    final List<Map<String, dynamic>> proximityOptions = [];
+    
+    for (final entry in routeGroups.entries) {
+      final routeName = entry.key;
+      final stopsOnRoute = entry.value;
+      
+      print('   📍 Route $routeName: Finding closest stop to user');
+      
+      // Find the stop CLOSEST TO USER on this route
+      Stop? closestStopToUser;
+      double minDistanceToUser = double.infinity;
+      
+      for (final stop in stopsOnRoute) {
+        // Skip if this is the same as the destination stop
+        if (stop.id == destinationStop.id) {
+          print('      ⏭️ Skipping ${stop.name} - same as destination stop');
+          continue;
+        }
+        
+        // Calculate distance from user to this stop
+        final distanceToUser = DistanceCalculator.calculateDistance(
+          userLat, userLng, stop.lat, stop.lng
+        );
+        
+        // Calculate distance from this stop to destination
+        final distanceToDestination = DistanceCalculator.calculateDistance(
+          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
+        );
+        
+        // Find the stop closest to user on this route
+        if (distanceToUser < minDistanceToUser) {
+          minDistanceToUser = distanceToUser;
+          closestStopToUser = stop;
+        }
+        
+        print('      🚏 ${stop.name}: User distance ${DistanceCalculator.formatDistance(distanceToUser)}, '
+              'Destination distance ${DistanceCalculator.formatDistance(distanceToDestination)}');
+        
+        // Debug: Show coordinates for verification
+        if (stop.name.toLowerCase().contains('quaidabad') || 
+            stop.name.toLowerCase().contains('abdullah') || 
+            stop.name.toLowerCase().contains('razzakabad')) {
+          print('         📍 ${stop.name} coordinates: (${stop.lat.toStringAsFixed(6)}, ${stop.lng.toStringAsFixed(6)})');
+        }
+      }
+      
+      if (closestStopToUser != null) {
+        final distanceToDestination = DistanceCalculator.calculateDistance(
+          closestStopToUser.lat, closestStopToUser.lng, destinationStop.lat, destinationStop.lng
+        );
+        
+        proximityOptions.add({
+          'route': routeName,
+          'stop': closestStopToUser,
+          'score': minDistanceToUser, // Score is distance to user (lower is better)
+          'distanceToUser': minDistanceToUser,
+          'distanceToDestination': distanceToDestination,
+          'priority': 'proximity',
+        });
+        
+        print('      ✅ Route $routeName: Closest stop to user is ${closestStopToUser.name} (${DistanceCalculator.formatDistance(minDistanceToUser)} from user)');
+      }
+    }
+    
+    // Sort by distance to user (closest first)
+    proximityOptions.sort((a, b) => a['distanceToUser'].compareTo(b['distanceToUser']));
+    
+    return proximityOptions;
   }
   
   Stop? _findTransferRoute(
@@ -508,6 +821,12 @@ class RouteFinder extends ChangeNotifier {
         print('   Bus distance: ${DistanceCalculator.formatDistance(busDistance)}');
       }
       
+      // Check if destination is at the exact bus stop
+      if (walkingDistanceFromEnd < 50) {
+        print('🎯 RouteFinder: Destination is at the exact bus stop: ${destinationStop.name}');
+        print('   No additional walking needed from bus stop to destination');
+      }
+      
       // Find common routes
       final commonRoutes = boardingStop.routes
           .where((route) => destinationStop.routes.contains(route))
@@ -546,6 +865,7 @@ class RouteFinder extends ChangeNotifier {
         instructions: instructions,
         walkingDistanceToStart: walkingDistanceToStart,
         walkingDistanceFromEnd: walkingDistanceFromEnd,
+        busDistance: busDistance,
       );
     } catch (e) {
       print('Error creating enhanced journey: $e');
@@ -632,16 +952,17 @@ class RouteFinder extends ChangeNotifier {
       routes: commonRoutes,
     );
     
-    return Journey(
-      startStop: boardingStop,
-      endStop: destinationStop,
-      routes: busRoutes,
-      transferStop: transferStop,
-      totalDistance: walkingDistanceToStart + busDistance + walkingDistanceFromEnd,
-      instructions: instructions,
-      walkingDistanceToStart: walkingDistanceToStart,
-      walkingDistanceFromEnd: walkingDistanceFromEnd,
-    );
+          return Journey(
+        startStop: boardingStop,
+        endStop: destinationStop,
+        routes: busRoutes,
+        transferStop: transferStop,
+        totalDistance: walkingDistanceToStart + busDistance + walkingDistanceFromEnd,
+        instructions: instructions,
+        walkingDistanceToStart: walkingDistanceToStart,
+        walkingDistanceFromEnd: walkingDistanceFromEnd,
+        busDistance: busDistance,
+      );
   }
   
   Stop? _findTransferStopBetween(Stop start, Stop end) {
@@ -704,7 +1025,10 @@ class RouteFinder extends ChangeNotifier {
     final double walkingTimeFromStop = (walkingFromStop?['duration'] as num?)?.toDouble() ?? 
         DistanceCalculator.calculateWalkingTimeMinutes(walkingDistanceFromEnd).toDouble();
     
-    if (walkingDistanceFromEnd < 500) {
+    // Check if destination is at the bus stop (no additional walking needed)
+    if (walkingDistanceFromEnd < 50) {
+      buffer.writeln('$finalStepNumber. Arrive at ${destinationStop.name} - your destination is at this bus stop!');
+    } else if (walkingDistanceFromEnd < 500) {
       buffer.writeln('$finalStepNumber. Walk ${DistanceCalculator.formatDistance(walkingDistanceFromEnd)} to your destination (${(walkingTimeFromStop / 60).round()} min)');
     } else if (walkingDistanceFromEnd < 2000) {
       buffer.writeln('$finalStepNumber. Take a rickshaw (${DistanceCalculator.formatDistance(walkingDistanceFromEnd)}) to your destination');
@@ -751,7 +1075,10 @@ class RouteFinder extends ChangeNotifier {
     
     // Step 3: Get to final destination
     final finalStepNumber = transferStop != null ? 4 : 3;
-    if (walkingDistanceFromEnd < 500) {
+    // Check if destination is at the bus stop (no additional walking needed)
+    if (walkingDistanceFromEnd < 50) {
+      buffer.writeln('$finalStepNumber. Arrive at ${destinationStop.name} - your destination is at this bus stop!');
+    } else if (walkingDistanceFromEnd < 500) {
       buffer.writeln('$finalStepNumber. Walk ${DistanceCalculator.formatDistance(walkingDistanceFromEnd)} to your destination');
     } else if (walkingDistanceFromEnd < 2000) {
       buffer.writeln('$finalStepNumber. Take a rickshaw (${DistanceCalculator.formatDistance(walkingDistanceFromEnd)}) to your destination');
@@ -763,11 +1090,9 @@ class RouteFinder extends ChangeNotifier {
   }
   
   int _calculateTotalJourneyTime(Journey journey) {
-    final busDistance = journey.totalDistance - journey.walkingDistanceToStart - journey.walkingDistanceFromEnd;
-    
     return DistanceCalculator.calculateJourneyTimeWithBykea(
       distanceToBusStop: journey.walkingDistanceToStart,
-      busJourneyDistance: busDistance,
+      busJourneyDistance: journey.busDistance,
       distanceFromBusStopToDestination: journey.walkingDistanceFromEnd,
       requiresTransfer: journey.requiresTransfer,
       departureTime: DateTime.now(),
@@ -815,6 +1140,7 @@ class RouteFinder extends ChangeNotifier {
         instructions: instructions,
         walkingDistanceToStart: totalWalkingDistance, // All distance is walking
         walkingDistanceFromEnd: 0, // No additional walking from bus stop
+        busDistance: 0, // No bus journey for walking-only
       );
     } catch (e) {
       print('Error creating walking-only journey: $e');

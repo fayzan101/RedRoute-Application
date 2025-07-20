@@ -173,13 +173,36 @@ class HomeTab extends StatelessWidget {
                       style: const TextStyle(color: Colors.grey),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        locationService.clearError();
-                        await locationService.initializeLocation();
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            locationService.clearError();
+                            await locationService.initializeLocation();
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            locationService.setFallbackLocation();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Using Karachi center as location. Routes may not be accurate.'),
+                                backgroundColor: Colors.orange,
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.location_on),
+                          label: const Text('Use Karachi Center'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -200,10 +223,51 @@ class HomeTab extends StatelessWidget {
       final dataService = context.read<DataService>();
       
       if (locationService.currentPosition == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please wait for location to be detected first'),
-            backgroundColor: Colors.orange,
+        // Show dialog to let user choose what to do
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Location Not Available'),
+            content: const Text(
+              'Your current location is not available. You can:\n\n'
+              '• Retry to get your location\n'
+              '• Use Karachi center as your starting point\n'
+              '• Cancel and try again later'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  locationService.clearError();
+                  await locationService.initializeLocation();
+                  // Try again after getting location
+                  if (locationService.currentPosition != null) {
+                    _navigateToRoute(context, place);
+                  }
+                },
+                child: const Text('Retry'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  locationService.setFallbackLocation();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Using Karachi center as location. Routes may not be accurate.'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  // Navigate with fallback location
+                  _navigateToRoute(context, place);
+                },
+                child: const Text('Use Karachi Center'),
+              ),
+            ],
           ),
         );
         return;

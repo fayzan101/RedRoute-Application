@@ -35,6 +35,7 @@ class Journey {
   final String instructions;
   final double walkingDistanceToStart;
   final double walkingDistanceFromEnd;
+  final double busDistance;
 
   Journey({
     required this.startStop,
@@ -45,6 +46,7 @@ class Journey {
     required this.instructions,
     required this.walkingDistanceToStart,
     required this.walkingDistanceFromEnd,
+    required this.busDistance,
   });
 
   bool get requiresTransfer => transferStop != null;

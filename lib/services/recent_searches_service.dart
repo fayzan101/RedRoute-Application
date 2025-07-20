@@ -31,12 +31,14 @@ class RecentSearch {
 
   factory RecentSearch.fromJson(Map<String, dynamic> json) {
     return RecentSearch(
-      query: json['query'],
-      name: json['name'],
-      subtitle: json['subtitle'],
-      latitude: json['latitude'],
-      longitude: json['longitude'],
-      timestamp: DateTime.parse(json['timestamp']),
+      query: json['query'] ?? '',
+      name: json['name'] ?? '',
+      subtitle: json['subtitle'] ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      timestamp: json['timestamp'] != null 
+          ? DateTime.parse(json['timestamp']) 
+          : DateTime.now(),
     );
   }
 }

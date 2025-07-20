@@ -20,46 +20,46 @@ class EnhancedLocationService extends ChangeNotifier {
     _error = null;
     
     try {
+      print('📍 LocationService: Initializing location services...');
+      
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        throw Exception('Location services are disabled. Please enable GPS.');
+        throw Exception('Location services are disabled. Please enable GPS in your device settings.');
       }
+
+      print('📍 LocationService: Location services are enabled');
 
       // Check and request permissions
       LocationPermission permission = await Geolocator.checkPermission();
+      print('📍 LocationService: Current permission status: $permission');
+      
       if (permission == LocationPermission.denied) {
+        print('📍 LocationService: Requesting location permission...');
         permission = await Geolocator.requestPermission();
+        print('📍 LocationService: Permission result: $permission');
+        
         if (permission == LocationPermission.denied) {
-          throw Exception('Location permissions are denied. Please grant location access.');
+          throw Exception('Location permissions are denied. Please grant location access in app settings.');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied. Please enable in settings.');
+        throw Exception('Location permissions are permanently denied. Please enable location access in your device settings.');
       }
 
       _permissionGranted = true;
+      print('📍 LocationService: Location permissions granted');
       
       // Get current position
       await getCurrentLocation();
       
     } catch (e) {
       _error = e.toString();
-      print('Location initialization error: $e');
-      // Fallback to Karachi center coordinates
-      _currentPosition = Position(
-        longitude: 67.0011, // Karachi center longitude
-        latitude: 24.8607,  // Karachi center latitude
-        timestamp: DateTime.now(),
-        accuracy: 0,
-        altitude: 0,
-        heading: 0,
-        speed: 0,
-        speedAccuracy: 0,
-        altitudeAccuracy: 0,
-        headingAccuracy: 0,
-      );
+      print('❌ LocationService: Initialization error: $e');
+      
+      // Don't set fallback coordinates silently - let the user know there's an issue
+      _currentPosition = null;
     } finally {
       _setLoading(false);
     }
@@ -67,6 +67,7 @@ class EnhancedLocationService extends ChangeNotifier {
 
   Future<void> getCurrentLocation() async {
     if (!_permissionGranted) {
+      print('📍 LocationService: Permissions not granted, initializing...');
       await initializeLocation();
       return;
     }
@@ -75,54 +76,63 @@ class EnhancedLocationService extends ChangeNotifier {
     _error = null;
     
     try {
+      print('📍 LocationService: Getting current location...');
+      
       // Try to get last known position first (faster)
       Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
       if (lastKnownPosition != null) {
-        print('📍 LocationService: Using last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
-        print('📍 LocationService: Accuracy: ${lastKnownPosition.accuracy}m, Age: ${DateTime.now().difference(lastKnownPosition.timestamp).inMinutes} minutes');
+        print('📍 LocationService: Found last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
         
         // Only use last known position if it's recent (less than 5 minutes old)
-        if (DateTime.now().difference(lastKnownPosition.timestamp).inMinutes < 5) {
+        final ageInMinutes = DateTime.now().difference(lastKnownPosition.timestamp).inMinutes;
+        if (ageInMinutes < 5) {
+          print('📍 LocationService: Using recent last known position (${ageInMinutes} minutes old)');
           _currentPosition = lastKnownPosition;
           await _resolveAddress();
           _setLoading(false);
           return;
         } else {
-          print('📍 LocationService: Last known position is too old, getting fresh location');
+          print('📍 LocationService: Last known position is too old (${ageInMinutes} minutes), getting fresh location');
         }
+      } else {
+        print('📍 LocationService: No last known position available');
       }
 
       // Get current position with better accuracy settings
+      print('📍 LocationService: Requesting fresh location with high accuracy...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
         timeLimit: const Duration(seconds: 30), // Increased timeout
         forceAndroidLocationManager: false, // Use Google Play Services if available
       );
       
-      print('📍 LocationService: Got fresh current position: ${position.latitude}, ${position.longitude}');
+      print('📍 LocationService: Got fresh position: ${position.latitude}, ${position.longitude}');
       print('📍 LocationService: Accuracy: ${position.accuracy}m, Timestamp: ${position.timestamp}');
+      
       _currentPosition = position;
       await _resolveAddress();
       
     } catch (e) {
       _error = 'Failed to get current location: ${e.toString()}';
-      print('Location error: $e');
+      print('❌ LocationService: Error getting current location: $e');
       
-      // Use last known position or fallback to Karachi center
+      // Don't silently use fallback coordinates - let the user know there's an issue
       if (_currentPosition == null) {
-        _currentPosition = Position(
-          longitude: 67.0011, // Karachi center longitude
-          latitude: 24.8607,  // Karachi center latitude
-          timestamp: DateTime.now(),
-          accuracy: 0,
-          altitude: 0,
-          heading: 0,
-          speed: 0,
-          speedAccuracy: 0,
-          altitudeAccuracy: 0,
-          headingAccuracy: 0,
-        );
-        print('⚠️ LocationService: Using fallback coordinates for Karachi center - this may cause incorrect distances!');
+        print('❌ LocationService: No current position available - location services may not be working');
+      }
+      
+      // Validate if current position is within reasonable Karachi bounds
+      if (_currentPosition != null) {
+        final lat = _currentPosition!.latitude;
+        final lng = _currentPosition!.longitude;
+        
+        // Karachi bounds: roughly lat 24.7-25.2, lng 66.8-67.5
+        if (lat < 24.7 || lat > 25.2 || lng < 66.8 || lng > 67.5) {
+          print('⚠️ LocationService: WARNING - Current position seems outside Karachi bounds!');
+          print('   Position: ($lat, $lng)');
+          print('   Expected: lat 24.7-25.2, lng 66.8-67.5');
+          print('   This may cause incorrect route calculations!');
+        }
       }
     } finally {
       _setLoading(false);
@@ -183,6 +193,25 @@ class EnhancedLocationService extends ChangeNotifier {
   }
 
   void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+  
+  /// Set fallback location (Karachi center) when user explicitly requests it
+  void setFallbackLocation() {
+    print('📍 LocationService: Setting fallback location (Karachi center)');
+    _currentPosition = Position(
+      longitude: 67.0011, // Karachi center longitude
+      latitude: 24.8607,  // Karachi center latitude
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
+    );
     _error = null;
     notifyListeners();
   }
@@ -251,6 +280,51 @@ class EnhancedLocationService extends ChangeNotifier {
       return '${distance.round()}m';
     } else {
       return '${(distance / 1000).toStringAsFixed(1)}km';
+    }
+  }
+  
+  /// Get detailed location status for debugging
+  Map<String, dynamic> getLocationStatus() {
+    return {
+      'hasPosition': _currentPosition != null,
+      'isLoading': _isLoading,
+      'hasError': _error != null,
+      'permissionGranted': _permissionGranted,
+      'position': _currentPosition != null ? {
+        'latitude': _currentPosition!.latitude,
+        'longitude': _currentPosition!.longitude,
+        'accuracy': _currentPosition!.accuracy,
+        'timestamp': _currentPosition!.timestamp.toString(),
+        'isInKarachi': isInKarachiArea(),
+      } : null,
+      'error': _error,
+      'address': _currentAddress,
+    };
+  }
+  
+  /// Print detailed location status to console for debugging
+  void printLocationStatus() {
+    final status = getLocationStatus();
+    print('📍 LocationService: Status Report');
+    print('   Has Position: ${status['hasPosition']}');
+    print('   Is Loading: ${status['isLoading']}');
+    print('   Has Error: ${status['hasError']}');
+    print('   Permission Granted: ${status['permissionGranted']}');
+    
+    if (status['position'] != null) {
+      final pos = status['position'] as Map<String, dynamic>;
+      print('   Position: ${pos['latitude']}, ${pos['longitude']}');
+      print('   Accuracy: ${pos['accuracy']}m');
+      print('   Timestamp: ${pos['timestamp']}');
+      print('   In Karachi: ${pos['isInKarachi']}');
+    }
+    
+    if (status['error'] != null) {
+      print('   Error: ${status['error']}');
+    }
+    
+    if (status['address'] != null) {
+      print('   Address: ${status['address']}');
     }
   }
 } 

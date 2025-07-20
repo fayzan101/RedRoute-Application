@@ -199,6 +199,10 @@ void didChangeDependencies() {
           final Map<String, dynamic> routeDetails = {};
           
           // Get walking route from user to bus stop
+          print('📍 RouteDetails: Getting walking route from user to bus stop');
+          print('   User: (${userPosition.latitude}, ${userPosition.longitude})');
+          print('   Bus Stop: (${currentJourney.startStop.lat}, ${currentJourney.startStop.lng})');
+          
           final walkingToBusStop = await _getWalkingRouteInfo(
             startLat: userPosition.latitude,
             startLng: userPosition.longitude,
@@ -206,6 +210,10 @@ void didChangeDependencies() {
             endLng: currentJourney.startStop.lng,
           );
           routeDetails['walkingToBusStop'] = walkingToBusStop;
+          
+          print('📍 RouteDetails: Walking to bus stop result:');
+          print('   Distance: ${walkingToBusStop['distance']}m (${(walkingToBusStop['distance'] / 1000).toStringAsFixed(2)}km)');
+          print('   Source: ${walkingToBusStop['source']}');
           
           // Get driving route for bus journey (simulated)
           final busJourney = await _getDrivingRouteInfo(
@@ -217,13 +225,21 @@ void didChangeDependencies() {
           routeDetails['busJourney'] = busJourney;
           
           // Get walking route from bus stop to destination
+          print('📍 RouteDetails: Getting walking route from bus stop to destination');
+          print('   Bus Stop: (${currentJourney.endStop.lat}, ${currentJourney.endStop.lng})');
+          print('   Destination: (${widget.destinationLat ?? currentJourney.endStop.lat}, ${widget.destinationLng ?? currentJourney.endStop.lng})');
+          
           final walkingToDestination = await _getWalkingRouteInfo(
             startLat: currentJourney.endStop.lat,
             startLng: currentJourney.endStop.lng,
-            endLat: currentJourney.endStop.lat,
-            endLng: currentJourney.endStop.lng,
+            endLat: widget.destinationLat ?? currentJourney.endStop.lat,
+            endLng: widget.destinationLng ?? currentJourney.endStop.lng,
           );
           routeDetails['walkingToDestination'] = walkingToDestination;
+          
+          print('📍 RouteDetails: Walking from bus stop to destination result:');
+          print('   Distance: ${walkingToDestination['distance']}m (${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km)');
+          print('   Source: ${walkingToDestination['source']}');
           
           // Calculate total journey info
           final totalDistance = walkingToBusStop['distance'] + 
@@ -232,6 +248,12 @@ void didChangeDependencies() {
           final totalDuration = walkingToBusStop['duration'] + 
                                busJourney['duration'] + 
                                walkingToDestination['duration'];
+          
+          print('📍 RouteDetails: Total journey calculation:');
+          print('   Walking to bus stop: ${(walkingToBusStop['distance'] / 1000).toStringAsFixed(2)}km');
+          print('   Bus journey: ${(busJourney['distance'] / 1000).toStringAsFixed(2)}km');
+          print('   Walking from bus stop: ${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km');
+          print('   Total distance: ${(totalDistance / 1000).toStringAsFixed(2)}km');
           
           routeDetails['totalDistance'] = totalDistance;
           routeDetails['totalDuration'] = totalDuration;
@@ -250,19 +272,8 @@ void didChangeDependencies() {
             destinationStopLng: currentJourney.endStop.lng,
           );
 
-          // Get traffic information
-          final trafficInfo = await MapboxService.getTrafficInfo(
-            startLat: currentJourney.startStop.lat,
-            startLng: currentJourney.startStop.lng,
-            endLat: currentJourney.endStop.lat,
-            endLng: currentJourney.endStop.lng,
-          );
-
           setState(() {
             journeyDetails = {...details, ...routeDetails};
-            if (trafficInfo != null) {
-              journeyDetails!['trafficInfo'] = trafficInfo;
-            }
             isLoading = false;
           });
         } else {
@@ -1405,10 +1416,8 @@ void didChangeDependencies() {
   int _calculateBusTime() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    
     return DistanceCalculator.calculatePublicTransportTimeMinutes(
-      distanceInMeters: busDistance,
+      distanceInMeters: _currentJourney!.busDistance,
       isBRT: true,
       requiresTransfer: _currentJourney!.requiresTransfer,
       departureTime: DateTime.now(),
@@ -1418,25 +1427,21 @@ void didChangeDependencies() {
   String _calculateBusDistance() {
     if (_currentJourney == null) return '0';
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    return (busDistance / 1000).toStringAsFixed(1);
+    return (_currentJourney!.busDistance / 1000).toStringAsFixed(1);
   }
 
   double _calculateBusDistanceInMeters() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    return busDistance;
+    return _currentJourney!.busDistance;
   }
 
   int _calculateTotalTime() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    
     return DistanceCalculator.calculateJourneyTimeWithBykea(
       distanceToBusStop: _currentJourney!.walkingDistanceToStart,
-      busJourneyDistance: busDistance,
+      busJourneyDistance: _currentJourney!.busDistance,
       distanceFromBusStopToDestination: _currentJourney!.walkingDistanceFromEnd,
       requiresTransfer: _currentJourney!.requiresTransfer,
       departureTime: DateTime.now(),
@@ -1446,8 +1451,7 @@ void didChangeDependencies() {
   double _calculateTotalDistance() {
     if (_currentJourney == null) return 0;
     
-    final busDistance = _currentJourney!.totalDistance - _currentJourney!.walkingDistanceToStart - _currentJourney!.walkingDistanceFromEnd;
-    return _currentJourney!.walkingDistanceToStart + busDistance + _currentJourney!.walkingDistanceFromEnd;
+    return _currentJourney!.walkingDistanceToStart + _currentJourney!.busDistance + _currentJourney!.walkingDistanceFromEnd;
   }
 
   int _calculateBykeaTime() {
@@ -1619,6 +1623,10 @@ void didChangeDependencies() {
     required double endLng,
     MapboxRouteType routeType = MapboxRouteType.drivingTraffic,
   }) async {
+    // Calculate straight-line distance for comparison
+    final straightLineDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+    print('📍 RouteDetails: Straight-line distance: ${(straightLineDistance / 1000).toStringAsFixed(2)}km');
+    
     try {
       final routeInfo = await MapboxDirectionsService.getRouteInfo(
         startLat: startLat,
@@ -1629,6 +1637,16 @@ void didChangeDependencies() {
       );
       
       if (routeInfo != null) {
+        final mapboxDistance = routeInfo.distance;
+        final ratio = mapboxDistance / straightLineDistance;
+        
+        print('📍 RouteDetails: Mapbox route distance: ${(mapboxDistance / 1000).toStringAsFixed(2)}km');
+        print('📍 RouteDetails: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
+        
+        if (ratio < 0.5 || ratio > 3.0) {
+          print('⚠️ RouteDetails: WARNING - Mapbox distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+        }
+        
         return {
           'distance': routeInfo.distance,
           'duration': routeInfo.duration,
@@ -1644,6 +1662,7 @@ void didChangeDependencies() {
     }
     
     // Fallback to local calculation
+    print('📍 RouteDetails: Using local distance calculation as fallback');
     final localDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
     int localDuration;
     

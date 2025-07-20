@@ -54,5 +54,5 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - assets/brt_stops.json
+    - assets/brt_stops_corrected.json
     - assets/places1.json

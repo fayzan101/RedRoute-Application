@@ -13,6 +13,7 @@ import 'services/route_finder.dart';
 import 'services/theme_service.dart';
 import 'services/isar_database_service.dart';
 import 'services/development_data_importer.dart';
+import 'services/mapbox_service.dart';
 import 'models/route.dart';
 
 void main() async {
@@ -41,6 +42,16 @@ void main() async {
     print('✅ Main: Isar database initialized successfully');
   } catch (e) {
     print('❌ Main: Error initializing Isar database: $e');
+  }
+  
+  // Test Mapbox distance calculation in development mode
+  if (kDebugMode) {
+    print('🧪 Main: Testing Mapbox distance calculation...');
+    try {
+      await MapboxService.testDistanceCalculation();
+    } catch (e) {
+      print('❌ Main: Mapbox distance test failed: $e');
+    }
   }
   
   // Set system UI mode for the entire app

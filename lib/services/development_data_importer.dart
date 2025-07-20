@@ -29,18 +29,17 @@ class DevelopmentDataImporter {
       // Check if data already exists
       final existingCount = await IsarDatabaseService.getTotalPlaces();
       if (existingCount > 0) {
-        print('ℹ️ DevelopmentDataImporter: Database already contains $existingCount places');
-        print('ℹ️ DevelopmentDataImporter: Skipping import to avoid duplicates');
+        
         return true;
       }
 
-      print('📥 DevelopmentDataImporter: Loading JSON from $_jsonAssetPath...');
+      
       
       // Load JSON from assets
       final String jsonString = await rootBundle.loadString(_jsonAssetPath);
       final List<dynamic> jsonList = json.decode(jsonString);
       
-      print('📊 DevelopmentDataImporter: Parsed ${jsonList.length} places from JSON');
+      
       
       // Convert to PlaceIsar objects
       final places = jsonList
@@ -51,20 +50,16 @@ class DevelopmentDataImporter {
               place.lon != 0.0)
           .toList();
       
-      print('✅ DevelopmentDataImporter: Validated ${places.length} places');
+      
 
       // Save to database
       await IsarDatabaseService.isar.writeTxn(() async {
         await IsarDatabaseService.isar.placeIsars.putAll(places);
       });
 
-      print('✅ DevelopmentDataImporter: Successfully imported ${places.length} places into Isar database');
-      print('ℹ️ DevelopmentDataImporter: Data is now permanently stored in Isar');
-      print('ℹ️ DevelopmentDataImporter: You can now safely remove the JSON file from assets');
-      
       return true;
     } catch (e) {
-      print('❌ DevelopmentDataImporter: Error importing data: $e');
+    
       return false;
     }
   }
@@ -72,17 +67,17 @@ class DevelopmentDataImporter {
   /// Clear all data from Isar database (development only)
   static Future<bool> clearDatabase() async {
     if (!kDebugMode) {
-      print('⚠️ DevelopmentDataImporter: Clear disabled in release mode');
+      p
       return false;
     }
 
     try {
       print('🗑️ DevelopmentDataImporter: Clearing database...');
       await IsarDatabaseService.clearAllPlaces();
-      print('✅ DevelopmentDataImporter: Database cleared successfully');
+      
       return true;
     } catch (e) {
-      print('❌ DevelopmentDataImporter: Error clearing database: $e');
+     
       return false;
     }
   }
@@ -131,12 +126,11 @@ class DevelopmentDataImporter {
       final String jsonString = await rootBundle.loadString(_jsonAssetPath);
       final List<dynamic> jsonList = json.decode(jsonString);
       
-      print('✅ DevelopmentDataImporter: JSON file verified');
-      print('📊 DevelopmentDataImporter: Found ${jsonList.length} places in JSON');
+      
       
       return jsonList.isNotEmpty;
     } catch (e) {
-      print('❌ DevelopmentDataImporter: JSON file verification failed: $e');
+      
       return false;
     }
   }

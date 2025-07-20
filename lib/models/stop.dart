@@ -14,11 +14,19 @@ class Stop {
   });
 
   factory Stop.fromJson(Map<String, dynamic> json) {
+    // Handle both 'latitude'/'longitude' and 'lat'/'lon' field names
+    final lat = json['latitude'] ?? json['lat'];
+    final lng = json['longitude'] ?? json['lon'];
+    
+    if (lat == null || lng == null) {
+      throw Exception('Missing coordinates for stop ${json['name']}');
+    }
+    
     return Stop(
       id: json['stopId'] as String,
       name: json['name'] as String,
-      lat: (json['latitude'] as num).toDouble(),
-      lng: (json['longitude'] as num).toDouble(),
+      lat: (lat as num).toDouble(),
+      lng: (lng as num).toDouble(),
       routes: List<String>.from(json['availableRoutes'] as List),
     );
   }

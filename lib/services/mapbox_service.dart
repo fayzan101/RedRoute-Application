@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../utils/distance_calculator.dart';
 import 'secure_token_service.dart';
 
 class MapboxService {
@@ -16,115 +17,11 @@ class MapboxService {
   }
   
   /// Search for places using Mapbox Geocoding API
+  /// @deprecated Use IsarDatabaseService.searchPlaces() for local search instead
   static Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
-    try {
-      print('🔍 MapboxService: Searching for "$query"');
-      
-      // Check rate limiting
-      if (await SecureTokenService.isRateLimited()) {
-        print('⚠️ MapboxService: Rate limited, skipping request');
-        return [];
-      }
-      
-      // Get access token securely
-      final accessToken = await _accessToken;
-      print('🔐 MapboxService: Using token: ${SecureTokenService.getMaskedToken(accessToken)}');
-      
-      // Focus search on Karachi, Pakistan
-      const String karachiBbox = ApiConfig.karachiBbox;
-      const String country = ApiConfig.pakistanCountryCode;
-      
-      // Try multiple search variations to get better results
-      List<String> searchVariations = [
-        query,
-        '$query, Karachi',
-        '$query, Pakistan',
-      ];
-      
-      // Add Karachi-specific variations for better results
-      if (!query.toLowerCase().contains('karachi')) {
-        searchVariations.add('$query Karachi');
-      }
-      
-      List<Map<String, dynamic>> allResults = [];
-      
-      for (String searchQuery in searchVariations) {
-        try {
-          final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$searchQuery.json')
-              .replace(queryParameters: {
-            'access_token': accessToken,
-            'bbox': karachiBbox,
-            'country': country,
-            'types': 'poi,place,neighborhood,address,locality',
-            'limit': '15',
-            'language': 'en',
-            'autocomplete': 'true',
-          });
-
-          print('🌐 MapboxService: Making request to ${uri.toString().replaceAll(accessToken, '***')}');
-          
-          final response = await http.get(uri);
-          
-          print('📡 MapboxService: Response status: ${response.statusCode}');
-          
-          if (response.statusCode == 200) {
-            final Map<String, dynamic> data = json.decode(response.body);
-            final List<dynamic> features = data['features'] ?? [];
-            
-            print('📍 MapboxService: Found ${features.length} features for "$searchQuery"');
-            
-            final results = features.map<Map<String, dynamic>>((feature) {
-              final Map<String, dynamic> properties = feature['properties'] ?? {};
-              final List<double> coordinates = List<double>.from(feature['geometry']['coordinates'] ?? [0.0, 0.0]);
-              
-              return {
-                'name': _extractName(feature),
-                'latitude': coordinates[1],
-                'longitude': coordinates[0],
-                'formattedAddress': feature['place_name'] ?? '',
-                'type': feature['place_type']?.first ?? 'unknown',
-                'relevance': feature['relevance'] ?? 0.0,
-                'properties': properties,
-                'feature': feature,
-                'searchQuery': searchQuery,
-              };
-            }).toList();
-            
-            allResults.addAll(results);
-          } else {
-            print('❌ MapboxService: HTTP Error ${response.statusCode}: ${response.body}');
-          }
-        } catch (e) {
-          print('❌ MapboxService: Error with search variation "$searchQuery": $e');
-          continue;
-        }
-      }
-      
-      print('📊 MapboxService: Total results before deduplication: ${allResults.length}');
-      
-      // Remove duplicates and sort by relevance
-      final Map<String, Map<String, dynamic>> uniqueResults = {};
-      for (final result in allResults) {
-        final key = '${result['name']}_${result['latitude']}_${result['longitude']}';
-        if (!uniqueResults.containsKey(key) || 
-            (result['relevance'] ?? 0.0) > (uniqueResults[key]?['relevance'] ?? 0.0)) {
-          uniqueResults[key] = result;
-        }
-      }
-      
-      final sortedResults = uniqueResults.values.toList();
-      sortedResults.sort((a, b) => (b['relevance'] ?? 0.0).compareTo(a['relevance'] ?? 0.0));
-      
-      print('✅ MapboxService: Returning ${sortedResults.length} unique results');
-      for (final result in sortedResults.take(3)) {
-        print('   - ${result['name']} (${result['relevance']})');
-      }
-      
-      return sortedResults;
-    } catch (e) {
-      print('❌ MapboxService: General error searching places: $e');
-      return [];
-    }
+    print('⚠️ MapboxService: searchPlaces() is deprecated');
+    print('⚠️ MapboxService: Use IsarDatabaseService.searchPlaces() for local search instead');
+    return [];
   }
 
   /// Get address from coordinates (reverse geocoding)
@@ -196,135 +93,30 @@ class MapboxService {
   }
 
   /// Search for BRT stops specifically
+  /// @deprecated Use DataService.searchStops() for BRT stop search instead
   static Future<List<Map<String, dynamic>>> searchBRTStops(String query) async {
-    try {
-      // Get access token securely
-      final accessToken = await _accessToken;
-      
-      // Add BRT-specific terms to improve search
-      String searchQuery = query;
-      if (!query.toLowerCase().contains('brt') && !query.toLowerCase().contains('bus')) {
-        searchQuery = '$query BRT bus stop';
-      }
-      
-      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/$searchQuery.json')
-          .replace(queryParameters: {
-        'access_token': accessToken,
-        'bbox': ApiConfig.karachiBbox,
-        'country': ApiConfig.pakistanCountryCode,
-        'types': 'poi',
-        'limit': '10',
-        'language': 'en',
-      });
-
-      final response = await http.get(uri);
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> features = data['features'] ?? [];
-        
-        return features.where((feature) {
-          final String name = _extractName(feature).toLowerCase();
-          final String category = feature['properties']?['category']?.toString().toLowerCase() ?? '';
-          
-          // Filter for BRT-related places
-          return name.contains('brt') || 
-                 name.contains('bus') || 
-                 name.contains('stop') ||
-                 category.contains('transport') ||
-                 category.contains('bus');
-        }).map<Map<String, dynamic>>((feature) {
-          final List<double> coordinates = List<double>.from(feature['geometry']['coordinates'] ?? [0.0, 0.0]);
-          
-          return {
-            'name': _extractName(feature),
-            'latitude': coordinates[1],
-            'longitude': coordinates[0],
-            'formattedAddress': feature['place_name'] ?? '',
-            'type': 'brt_stop',
-            'relevance': feature['relevance'] ?? 0.0,
-            'properties': feature['properties'] ?? {},
-          };
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error searching BRT stops: $e');
-      return [];
-    }
+    print('⚠️ MapboxService: searchBRTStops() is deprecated');
+    print('⚠️ MapboxService: Use DataService.searchStops() for BRT stop search instead');
+    return [];
   }
 
   /// Extract the best name from a Mapbox feature
+  /// @deprecated No longer needed after removing place search functionality
   static String _extractName(Map<String, dynamic> feature) {
-    final Map<String, dynamic> properties = feature['properties'] ?? {};
-    final String placeName = feature['place_name'] ?? '';
-    
-    // Try to get the most specific name
-    if (properties['name'] != null && properties['name'].toString().isNotEmpty) {
-      return properties['name'];
-    }
-    
-    if (properties['short_name'] != null && properties['short_name'].toString().isNotEmpty) {
-      return properties['short_name'];
-    }
-    
-    // Extract from place_name (remove country and city parts)
-    if (placeName.isNotEmpty) {
-      final parts = placeName.split(', ');
-      if (parts.length > 1) {
-        // Return the first part (most specific)
-        return parts.first;
-      }
-      return placeName;
-    }
-    
+    print('⚠️ MapboxService: _extractName() is deprecated');
     return 'Unknown Location';
   }
 
   /// Get nearby places around a location
+  /// @deprecated Use IsarDatabaseService for local place search instead
   static Future<List<Map<String, dynamic>>> getNearbyPlaces(
     double latitude, 
     double longitude, 
     {double radius = 1000}
   ) async {
-    try {
-      // Get access token securely
-      final accessToken = await _accessToken;
-      
-      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/nearby.json')
-          .replace(queryParameters: {
-        'access_token': accessToken,
-        'proximity': '$longitude,$latitude',
-        'types': 'poi,place',
-        'limit': '10',
-        'language': 'en',
-      });
-
-      final response = await http.get(uri);
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> features = data['features'] ?? [];
-        
-        return features.map<Map<String, dynamic>>((feature) {
-          final List<double> coordinates = List<double>.from(feature['geometry']['coordinates'] ?? [0.0, 0.0]);
-          
-          return {
-            'name': _extractName(feature),
-            'latitude': coordinates[1],
-            'longitude': coordinates[0],
-            'formattedAddress': feature['place_name'] ?? '',
-            'type': feature['place_type']?.first ?? 'unknown',
-            'relevance': feature['relevance'] ?? 0.0,
-            'properties': feature['properties'] ?? {},
-          };
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error getting nearby places: $e');
-      return [];
-    }
+    print('⚠️ MapboxService: getNearbyPlaces() is deprecated');
+    print('⚠️ MapboxService: Use IsarDatabaseService for local place search instead');
+    return [];
   }
 
   /// Get route directions between two points
@@ -333,23 +125,59 @@ class MapboxService {
     required double startLng,
     required double endLat,
     required double endLng,
-    String profile = 'driving', // driving, walking, cycling, driving-traffic
+    String profile = 'driving', // driving, walking, cycling
   }) async {
     try {
+      // Validate coordinates are within reasonable bounds
+      if (!_isValidCoordinate(startLat, startLng) || !_isValidCoordinate(endLat, endLng)) {
+        print('❌ MapboxService: Invalid coordinates provided');
+        print('   Start: ($startLat, $startLng)');
+        print('   End: ($endLat, $endLng)');
+        print('   Expected: lat -90 to 90, lng -180 to 180');
+        return null;
+      }
+      
+      // Check if coordinates are too close (same point)
+      final distance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+      if (distance < 10) { // Less than 10 meters
+        print('⚠️ MapboxService: Coordinates too close (${distance.toStringAsFixed(2)}m), skipping API call');
+        return {
+          'geometry': null,
+          'duration': 0.0,
+          'distance': distance,
+          'steps': [],
+          'summary': 'Same location',
+        };
+      }
+      
       // Get access token securely
       final accessToken = await _accessToken;
       
-      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxDirectionsEndpoint}/$profile/$startLng,$startLat;$endLng,$endLat.json')
+      // Build the correct endpoint URL based on profile
+      final String endpoint = '/directions/v5/mapbox/$profile';
+      
+      // Ensure coordinates are in the correct format (longitude,latitude)
+      final String coordinates = '$startLng,$startLat;$endLng,$endLat';
+      
+      final Uri uri = Uri.parse('$_baseUrl$endpoint/$coordinates.json')
           .replace(queryParameters: {
         'access_token': accessToken,
         'geometries': 'geojson',
         'overview': 'full',
         'steps': 'true',
-        'annotations': 'duration,distance',
+        'annotations': 'duration,distance,congestion,speed',
         'language': 'en',
+        'continue_straight': 'true',
+        'alternatives': 'false',
       });
 
-      final response = await http.get(uri);
+      print('🌐 MapboxService: Getting route directions from ($startLat, $startLng) to ($endLat, $endLng)');
+      print('🌐 MapboxService: Profile: $profile');
+      print('🌐 MapboxService: Coordinates string: $coordinates');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      
+      print('📡 MapboxService: Route directions response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -357,14 +185,39 @@ class MapboxService {
         
         if (routes.isNotEmpty) {
           final route = routes.first;
+          final duration = route['duration'] ?? 0.0;
+          final distance = route['distance'] ?? 0.0;
+          
+          print('✅ MapboxService: Route found - Distance: ${distance.toStringAsFixed(2)}m, Duration: ${duration.toStringAsFixed(2)}s');
+          print('✅ MapboxService: Distance in km: ${(distance / 1000).toStringAsFixed(3)}km');
+          
+          // Validate distance makes sense
+          final straightLineDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+          final ratio = distance / straightLineDistance;
+          print('✅ MapboxService: Straight-line distance: ${straightLineDistance.toStringAsFixed(2)}m');
+          print('✅ MapboxService: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
+          
+          if (ratio < 0.5 || ratio > 3.0) {
+            print('⚠️ MapboxService: WARNING - Route distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+          }
+          
           return {
             'geometry': route['geometry'],
-            'duration': route['duration'],
-            'distance': route['distance'],
+            'duration': duration,
+            'distance': distance,
             'steps': route['legs']?.first?['steps'] ?? [],
             'summary': route['legs']?.first?['summary'] ?? '',
           };
+        } else {
+          print('⚠️ MapboxService: No routes found in response');
         }
+      } else if (response.statusCode == 422) {
+        print('❌ MapboxService: Invalid request parameters for route directions');
+        print('   Response: ${response.body}');
+        return null;
+      } else {
+        print('❌ MapboxService: HTTP Error ${response.statusCode} for route directions: ${response.body}');
+        return null;
       }
       return null;
     } catch (e) {
@@ -526,106 +379,49 @@ class MapboxService {
   }
 
   /// Get nearby transport options (bus stops, taxi stands, etc.)
+  /// @deprecated Use DataService for BRT stop search instead
   static Future<List<Map<String, dynamic>>> getNearbyTransportOptions({
     required double latitude,
     required double longitude,
     double radius = 1000,
   }) async {
-    try {
-      // Get access token securely
-      final accessToken = await _accessToken;
-      
-      final Uri uri = Uri.parse('$_baseUrl${ApiConfig.mapboxGeocodingEndpoint}/nearby.json')
-          .replace(queryParameters: {
-        'access_token': accessToken,
-        'proximity': '$longitude,$latitude',
-        'types': 'poi',
-        'limit': '20',
-        'language': 'en',
-      });
-
-      final response = await http.get(uri);
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> features = data['features'] ?? [];
-        
-        return features.where((feature) {
-          final String name = _extractName(feature).toLowerCase();
-          final String category = feature['properties']?['category']?.toString().toLowerCase() ?? '';
-          
-          // Filter for transport-related places
-          return name.contains('bus') || 
-                 name.contains('stop') ||
-                 name.contains('station') ||
-                 name.contains('terminal') ||
-                 name.contains('brt') ||
-                 category.contains('transport') ||
-                 category.contains('bus') ||
-                 category.contains('station');
-        }).map<Map<String, dynamic>>((feature) {
-          final List<double> coordinates = List<double>.from(feature['geometry']['coordinates'] ?? [0.0, 0.0]);
-          
-          return {
-            'name': _extractName(feature),
-            'latitude': coordinates[1],
-            'longitude': coordinates[0],
-            'formattedAddress': feature['place_name'] ?? '',
-            'type': 'transport',
-            'distance': feature['relevance'] ?? 0.0,
-            'properties': feature['properties'] ?? {},
-          };
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error getting nearby transport options: $e');
-      return [];
-    }
+    print('⚠️ MapboxService: getNearbyTransportOptions() is deprecated');
+    print('⚠️ MapboxService: Use DataService for BRT stop search instead');
+    return [];
   }
 
   /// Get traffic information for a route
+  /// @deprecated Traffic information functionality removed
   static Future<Map<String, dynamic>?> getTrafficInfo({
     required double startLat,
     required double startLng,
     required double endLat,
     required double endLng,
   }) async {
-    try {
-      final Uri uri = Uri.parse('$_baseUrl/directions/v5/mapbox/driving-traffic/$startLng,$startLat;$endLng,$endLat.json')
-          .replace(queryParameters: {
-        'access_token': _accessToken,
-        'annotations': 'duration,distance',
-      });
-
-      final response = await http.get(uri);
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        final List<dynamic> routes = data['routes'] ?? [];
-        
-        if (routes.isNotEmpty) {
-          final route = routes.first;
-          return {
-            'duration': route['duration'],
-            'distance': route['distance'],
-            'trafficLevel': _calculateTrafficLevel(route['duration'] ?? 0),
-          };
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Error getting traffic info: $e');
-      return null;
-    }
+    print('⚠️ MapboxService: getTrafficInfo() is deprecated');
+    print('⚠️ MapboxService: Traffic information functionality has been removed');
+    return null;
   }
 
   /// Calculate traffic level based on duration
+  /// @deprecated Traffic information functionality removed
   static String _calculateTrafficLevel(double duration) {
-    // This is a simplified calculation - in a real app you'd compare with normal duration
-    if (duration < 600) return 'Low';
-    if (duration < 1200) return 'Medium';
-    return 'High';
+    print('⚠️ MapboxService: _calculateTrafficLevel() is deprecated');
+    return 'Unknown';
+  }
+  
+  /// Format duration in minutes
+  /// @deprecated Traffic information functionality removed
+  static String _formatDuration(double seconds) {
+    print('⚠️ MapboxService: _formatDuration() is deprecated');
+    return 'Unknown';
+  }
+  
+  /// Format distance in km
+  /// @deprecated Traffic information functionality removed
+  static String _formatDistance(double meters) {
+    print('⚠️ MapboxService: _formatDistance() is deprecated');
+    return 'Unknown';
   }
 
   /// Test method to check if Mapbox service is working
@@ -633,9 +429,12 @@ class MapboxService {
     try {
       print('🧪 MapboxService: Testing connection...');
       
+      // Get access token securely
+      final accessToken = await _accessToken;
+      
       final Uri uri = Uri.parse('$_baseUrl/geocoding/v5/mapbox.places/Karachi.json')
           .replace(queryParameters: {
-        'access_token': _accessToken,
+        'access_token': accessToken,
         'limit': '1',
       });
 
@@ -656,5 +455,73 @@ class MapboxService {
       print('🧪 MapboxService: Test failed with error: $e');
       return false;
     }
+  }
+  
+  /// Test distance calculation with known coordinates
+  static Future<void> testDistanceCalculation() async {
+    try {
+      print('🧪 MapboxService: Testing distance calculation...');
+      
+      // Test with Karachi center to Fast University (known distance ~25km)
+      final karachiCenterLat = 24.8607;
+      final karachiCenterLng = 67.0011;
+      final fastUniLat = 24.8571541;
+      final fastUniLng = 67.2645918;
+      
+      print('🧪 MapboxService: Testing route from Karachi center to Fast University');
+      print('   Start: ($karachiCenterLat, $karachiCenterLng)');
+      print('   End: ($fastUniLat, $fastUniLng)');
+      
+      // Calculate straight-line distance
+      final straightLineDistance = DistanceCalculator.calculateDistance(
+        karachiCenterLat, karachiCenterLng, fastUniLat, fastUniLng
+      );
+      print('🧪 MapboxService: Straight-line distance: ${(straightLineDistance / 1000).toStringAsFixed(2)}km');
+      
+      // Get Mapbox route distance
+      final routeInfo = await getRouteDirections(
+        startLat: karachiCenterLat,
+        startLng: karachiCenterLng,
+        endLat: fastUniLat,
+        endLng: fastUniLng,
+        profile: 'driving',
+      );
+      
+      if (routeInfo != null) {
+        final mapboxDistance = routeInfo['distance'] as double;
+        final ratio = mapboxDistance / straightLineDistance;
+        
+        print('🧪 MapboxService: Mapbox route distance: ${(mapboxDistance / 1000).toStringAsFixed(2)}km');
+        print('🧪 MapboxService: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
+        
+        if (ratio >= 1.0 && ratio <= 2.0) {
+          print('✅ MapboxService: Distance calculation looks reasonable');
+        } else {
+          print('⚠️ MapboxService: Distance calculation seems unusual');
+        }
+      } else {
+        print('❌ MapboxService: Failed to get route from Mapbox');
+      }
+      
+    } catch (e) {
+      print('❌ MapboxService: Error testing distance calculation: $e');
+    }
+  }
+  
+  /// Validate if coordinates are within valid geographic bounds
+  static bool _isValidCoordinate(double lat, double lng) {
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+  
+  /// Validate if coordinates are within Karachi area
+  static bool _isInKarachiArea(double lat, double lng) {
+    // Karachi bounding box (roughly)
+    const double karachiMinLat = 24.7;
+    const double karachiMaxLat = 25.2;
+    const double karachiMinLng = 66.8;
+    const double karachiMaxLng = 67.4;
+    
+    return lat >= karachiMinLat && lat <= karachiMaxLat &&
+           lng >= karachiMinLng && lng <= karachiMaxLng;
   }
 } 

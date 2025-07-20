@@ -21,7 +21,7 @@ class DataService extends ChangeNotifier {
         response = await rootBundle.loadString('assets/bus_routes.json');
       } catch (e) {
         // Fallback to old file name
-        response = await rootBundle.loadString('assets/brt_stops.json');
+        response = await rootBundle.loadString('assets/brt_stops_corrected.json');
       }
       
       final Map<String, dynamic> data = json.decode(response);
@@ -56,7 +56,7 @@ class DataService extends ChangeNotifier {
             final stop = Stop.fromJson(stopJson);
             allStops.add(stop);
           } catch (e) {
-            print('Error parsing stop: $e');
+            
             continue;
           }
         }
@@ -69,11 +69,21 @@ class DataService extends ChangeNotifier {
       _stops = allStops;
       _generateRoutes();
       
+      // Debug: Check if Fast University is loaded
+      final fastUniversity = allStops.where((stop) => 
+        stop.name.toLowerCase().contains('fast') || 
+        stop.name.toLowerCase().contains('university')
+      ).toList();
+      
+      if (fastUniversity.isNotEmpty) {
+        
+      }
+      
       notifyListeners();
-      print('Loaded ${allStops.length} BRT stops successfully');
+      
       
     } catch (e) {
-      print('Failed to load BRT data: $e');
+     
       throw Exception('Failed to load BRT data: $e');
     }
   }
