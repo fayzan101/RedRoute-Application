@@ -12,6 +12,8 @@ import '../widgets/karachi_location_search.dart';
 import 'map_screen.dart';
 import 'settings_screen.dart';
 import 'route_details_screen.dart';
+import 'bus_route_details_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -538,57 +540,172 @@ class RoutesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('BRT Routes'),
-      ),
-      body: Consumer<DataService>(
-        builder: (context, dataService, child) {
-          final routes = dataService.getAllRouteNames();
-          
-          if (routes.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Loading routes...'),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: routes.length,
-            itemBuilder: (context, index) {
-              final route = dataService.getRouteByName(routes[index]);
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12.0),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    child: Text(
-                      routes[index].split(' ').last,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  Text(
+                    'BRT Routes',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF181111),
                     ),
                   ),
-                  title: Text(
-                    routes[index],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  const Spacer(),
+                  Icon(
+                    Icons.directions_bus,
+                    color: const Color(0xFFE92929),
+                    size: 28,
                   ),
-                  subtitle: Text('${route?.stops.length ?? 0} stops'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Navigate to route details
-                    Navigator.pushNamed(context, '/route-details');
-                  },
-                ),
-              );
-            },
-          );
-        },
+                ],
+              ),
+            ),
+            
+            // Routes List
+            Expanded(
+              child: Consumer<DataService>(
+                builder: (context, dataService, child) {
+                  final routes = dataService.getAllRouteNames();
+                  
+                  if (routes.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            color: const Color(0xFFE92929),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Loading routes...',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount: routes.length,
+                    itemBuilder: (context, index) {
+                      final route = dataService.getRouteByName(routes[index]);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey.shade800 : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark 
+                                  ? Colors.black.withOpacity(0.2)
+                                  : Colors.grey.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          leading: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE92929),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                routes[index].split(' ').last,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            routes[index],
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF181111),
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                '${route?.stops.length ?? 0} stops',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                ),
+                              ),
+                              if (route?.stops.isNotEmpty == true) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${route!.stops.first.name} → ${route.stops.last.name}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                          onTap: () {
+                            // Navigate to route details
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BusRouteDetailsScreen(
+                                  routeName: routes[index],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

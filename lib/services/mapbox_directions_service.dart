@@ -23,26 +23,6 @@ class MapboxDirectionsService {
     return ApiConfig.mapboxAccessToken;
   }
 
-  /// Test network connectivity to Mapbox API
-  static Future<bool> testNetworkConnectivity() async {
-    try {
-      print('🌐 MapboxDirectionsService: Testing network connectivity...');
-      
-      // Test basic HTTPS connectivity with shorter timeout
-      final response = await http.get(
-        Uri.parse('https://api.mapbox.com'),
-        headers: {'User-Agent': 'RedRoute/1.0'},
-      ).timeout(const Duration(seconds: 5));
-      
-      print('📡 MapboxDirectionsService: Network test response: ${response.statusCode}');
-      return response.statusCode == 200 || response.statusCode == 403; // 403 means API is reachable but unauthorized
-    } catch (e) {
-      print('❌ MapboxDirectionsService: Network connectivity test failed: $e');
-      // Don't block the app if network test fails, just log it
-      return true; // Allow requests to proceed
-    }
-  }
-
   /// Get directions between two points
   static Future<MapboxDirectionsResponse?> getDirections({
     required double startLat,
@@ -70,39 +50,40 @@ class MapboxDirectionsService {
       }
       
       // Test network connectivity first
-      final isConnected = await testNetworkConnectivity();
-      if (!isConnected) {
-        print('❌ MapboxDirectionsService: No network connectivity to Mapbox API');
-        print('   Please check your internet connection and try again');
-        return null;
-      }
-      
-      // Check rate limiting
-      if (await SecureTokenService.isRateLimited()) {
-        print('⚠️ MapboxDirectionsService: Rate limited, skipping request');
+      final isConnected = await SecureTokenService.isRateLimited();
+      if (isConnected) {
+        print('❌ MapboxDirectionsService: Rate limited, skipping request');
         return null;
       }
       
       // Get access token securely
       final accessToken = await _accessToken;
       
-      // Build coordinates string
+      // Validate access token has directions scope
+      if (!_hasDirectionsScope(accessToken)) {
+        
+      }
+      
+      // Build coordinates string in longitude,latitude format (Mapbox requirement)
       String coordinates = '$startLng,$startLat';
       if (waypoints != null && waypoints.isNotEmpty) {
         for (int i = 0; i < waypoints.length; i += 2) {
           if (i + 1 < waypoints.length) {
-            coordinates += ';${waypoints[i + 1]},${waypoints[i]}';
+            coordinates += ';${waypoints[i]},${waypoints[i + 1]}'; // Fix: lng,lat format
           }
         }
       }
       coordinates += ';$endLng,$endLat';
       
-      // Build query parameters
+      // Validate route type
+      String routeTypeStr = _validateRouteType(routeType);
+      
+      // Build query parameters with required values
       final Map<String, String> queryParams = {
         'access_token': accessToken,
         'geometries': 'geojson',
+        'overview': 'full',
         'steps': steps.toString(),
-        'overview': overview.toString(),
         'continue_straight': continueStraight.toString(),
         'alternatives': alternatives.toString(),
       };
@@ -112,47 +93,48 @@ class MapboxDirectionsService {
         queryParams['annotations'] = 'duration,distance,congestion,speed';
       }
       
-      // Add route type - ensure single profile
-      String routeTypeStr;
-      switch (routeType) {
-        case MapboxRouteType.driving:
-          routeTypeStr = 'driving';
-          break;
-        case MapboxRouteType.walking:
-          routeTypeStr = 'walking';
-          break;
-        case MapboxRouteType.cycling:
-          routeTypeStr = 'cycling';
-          break;
-        case MapboxRouteType.drivingTraffic:
-          routeTypeStr = 'driving-traffic';
-          break;
-        default:
-          routeTypeStr = 'driving'; // Default fallback
-      }
-      
-      final Uri uri = Uri.parse('$_baseUrl/directions/v5/mapbox/$routeTypeStr/$coordinates')
-          .replace(queryParameters: queryParams);
+      // Use Uri.https() instead of Uri.parse().replace() to avoid query string errors
+      final Uri uri = Uri.https(
+        'api.mapbox.com',
+        '/directions/v5/mapbox/$routeTypeStr/$coordinates',
+        queryParams,
+      );
 
-      print('🌐 MapboxDirectionsService: Making request to ${uri.toString().replaceAll(accessToken, '***')}');
+      // Log the full URI for debugging (with token masked)
+      final debugUri = uri.toString().replaceAll(accessToken, '***');
+      
       
       final response = await http.get(uri).timeout(const Duration(seconds: 30));
       
-      print('📡 MapboxDirectionsService: Response status: ${response.statusCode}');
+      
       
       if (response.statusCode == 200) {
         try {
           final Map<String, dynamic> data = json.decode(response.body);
-          print('📊 MapboxDirectionsService: Parsed response data');
-          return MapboxDirectionsResponse.fromJson(data);
+          
+          
+          // Validate response structure
+          if (!_isValidDirectionsResponse(data)) {
+            
+            return null;
+          }
+          
+          final directionsResponse = MapboxDirectionsResponse.fromJson(data);
+          
+          // Log route information for debugging
+          if (directionsResponse.routes.isNotEmpty) {
+            final route = directionsResponse.routes.first;
+            print('📏 MapboxDirectionsService: Route distance: ${route.distance}m, duration: ${route.duration}s');
+          }
+          
+          return directionsResponse;
         } catch (e) {
-          print('❌ MapboxDirectionsService: Error parsing response: $e');
-          print('   Response body: ${response.body}');
+         
+          
           return null;
         }
       } else if (response.statusCode == 422) {
-        print('❌ MapboxDirectionsService: Invalid request parameters');
-        print('   Response: ${response.body}');
+        
         return null;
       } else {
         print('❌ MapboxDirectionsService: HTTP Error ${response.statusCode}: ${response.body}');
@@ -295,36 +277,97 @@ class MapboxDirectionsService {
       routeType: MapboxRouteType.cycling,
     );
   }
-
-  /// Test connection to Mapbox Directions API
-  static Future<bool> testConnection() async {
-    try {
-      // Test with a simple route in Karachi
-      const double startLat = 24.8607;
-      const double startLng = 67.0011;
-      const double endLat = 24.8607;
-      const double endLng = 67.0012;
-      
-      final response = await getDirections(
-        startLat: startLat,
-        startLng: startLng,
-        endLat: endLat,
-        endLng: endLng,
-        routeType: MapboxRouteType.driving,
-        steps: false,
-        annotations: false,
-      );
-      
-      return response != null;
-    } catch (e) {
-      print('❌ MapboxDirectionsService: Connection test failed: $e');
-      return false;
-    }
-  }
   
   /// Validate if coordinates are within valid geographic bounds
   static bool _isValidCoordinate(double lat, double lng) {
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  /// Validate route type and return the string representation
+  static String _validateRouteType(MapboxRouteType routeType) {
+    switch (routeType) {
+      case MapboxRouteType.driving:
+        return 'driving';
+      case MapboxRouteType.walking:
+        return 'walking';
+      case MapboxRouteType.cycling:
+        return 'cycling';
+      case MapboxRouteType.drivingTraffic:
+        return 'driving'; // Use 'driving' instead of 'driving-traffic' for better compatibility
+      default:
+        return 'driving'; // Default fallback
+    }
+  }
+
+  /// Check if access token has the 'directions' scope
+  static bool _hasDirectionsScope(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) {
+        return false;
+      }
+      // Add padding to base64 string if needed
+      String padded = parts[1];
+      while (padded.length % 4 != 0) {
+        padded += '=';
+      }
+      final payload = json.decode(utf8.decode(base64Url.decode(padded)));
+      return payload['scope']?.contains('directions') ?? false;
+    } catch (e) {
+      print('⚠️ MapboxDirectionsService: Could not parse token scope: $e');
+      return true; // Assume it has directions scope if we can't parse
+    }
+  }
+
+  /// Validate that the response has the expected structure
+  static bool _isValidDirectionsResponse(Map<String, dynamic> data) {
+    if (data == null) return false;
+    
+    // Check for required top-level fields
+    if (!data.containsKey('routes') || !data.containsKey('code')) {
+      return false;
+    }
+    
+    // Check that routes is a list and has at least one route
+    if (data['routes'] is! List || (data['routes'] as List).isEmpty) {
+      return false;
+    }
+    
+    // Check that the first route has required fields
+    final firstRoute = data['routes'][0];
+    if (firstRoute is! Map<String, dynamic>) {
+      return false;
+    }
+    
+    // Check for required route fields (distance and duration)
+    if (!firstRoute.containsKey('distance') || !firstRoute.containsKey('duration')) {
+      return false;
+    }
+    
+    // Validate that distance and duration are numeric
+    final distance = firstRoute['distance'];
+    final duration = firstRoute['duration'];
+    
+    if (distance == null || duration == null) {
+      return false;
+    }
+    
+    // Check if they're numeric
+    if (distance is! num || duration is! num) {
+      return false;
+    }
+    
+    // Allow zero or small positive values (some routes might be very short)
+    if (distance < 0 || duration < 0) {
+      return false;
+    }
+    
+    // Log validation success for debugging
+    print('✅ MapboxDirectionsService: Response validation passed');
+    print('   Distance: $distance meters');
+    print('   Duration: $duration seconds');
+    
+    return true;
   }
 }
 
@@ -708,7 +751,7 @@ class MapboxWaypoint {
 }
 
 class MapboxRouteInfo {
-  final double distance; // in meters
+  final double distance; // in meters (as returned by Mapbox)
   final double duration; // in seconds
   final MapboxRouteType routeType;
   final Map<String, dynamic>? geometry;
@@ -718,10 +761,21 @@ class MapboxRouteInfo {
     required this.duration,
     required this.routeType,
     this.geometry,
-  });
+  }) {
+    // Validate that distance is reasonable (Mapbox returns distance in meters)
+    if (distance < 0) {
+      print('⚠️ MapboxRouteInfo: Negative distance detected: $distance meters');
+    }
+    if (distance > 1000000) { // 1000 km
+      print('⚠️ MapboxRouteInfo: Unusually large distance detected: $distance meters');
+    }
+  }
 
-  /// Get formatted distance string
+  /// Get formatted distance string (Mapbox returns distance in meters)
   String get formattedDistance {
+    if (distance < 0) {
+      return 'Invalid distance';
+    }
     if (distance < 1000) {
       return '${distance.round()}m';
     } else {

@@ -14,6 +14,7 @@ import '../services/route_finder.dart';
 import '../services/transport_preference_service.dart';
 import '../screens/map_screen.dart';
 import '../screens/bus_route_details_screen.dart';
+import 'package:flutter/foundation.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
   final Journey? journey;
@@ -963,27 +964,6 @@ void didChangeDependencies() {
           const SizedBox(height: 16),
           Row(
             children: [
-            Expanded(
-                child: _buildJourneyMetric(
-                  icon: Icons.access_time,
-                  title: 'Bus Time',
-                  value: '${_calculateBusTime()} min',
-                  color: Colors.green.shade600,
-                ),
-              ),
-              Expanded(
-                child: _buildJourneyMetric(
-                  icon: Icons.straighten,
-                  title: 'Bus Distance',
-                  value: '${_calculateBusDistance()} km',
-                  color: Colors.green.shade600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
               Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.directions_walk,
@@ -1643,53 +1623,66 @@ void didChangeDependencies() {
         print('📍 RouteDetails: Mapbox route distance: ${(mapboxDistance / 1000).toStringAsFixed(2)}km');
         print('📍 RouteDetails: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
         
-        if (ratio < 0.5 || ratio > 3.0) {
-          print('⚠️ RouteDetails: WARNING - Mapbox distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+        // Validate the distance is reasonable
+        if (ratio >= 0.5 && ratio <= 3.0) {
+          print('✅ RouteDetails: Mapbox distance is reasonable');
+          return {
+            'distance': routeInfo.distance,
+            'duration': routeInfo.duration,
+            'formattedDistance': routeInfo.formattedDistance,
+            'formattedDuration': routeInfo.formattedDuration,
+            'durationMinutes': routeInfo.durationMinutes,
+            'distanceKm': routeInfo.distanceKm,
+            'source': 'mapbox',
+          };
+        } else {
+          print('⚠️ RouteDetails: Mapbox distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+          print('📍 RouteDetails: Falling back to local calculation with road network adjustment');
         }
-        
-        return {
-          'distance': routeInfo.distance,
-          'duration': routeInfo.duration,
-          'formattedDistance': routeInfo.formattedDistance,
-          'formattedDuration': routeInfo.formattedDuration,
-          'durationMinutes': routeInfo.durationMinutes,
-          'distanceKm': routeInfo.distanceKm,
-          'source': 'mapbox',
-        };
       }
     } catch (e) {
       print('❌ RouteDetailsScreen: Mapbox route calculation failed: $e');
     }
     
-    // Fallback to local calculation
-    print('📍 RouteDetails: Using local distance calculation as fallback');
+    // Fallback to local calculation with road network adjustment
+    print('📍 RouteDetails: Using local distance calculation with road network adjustment');
     final localDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+    
+    // Apply road network adjustment factor
+    double adjustedDistance;
     int localDuration;
     
     switch (routeType) {
       case MapboxRouteType.walking:
-        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(localDistance);
+        adjustedDistance = localDistance * 1.3; // Walking routes are more direct
+        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(adjustedDistance);
         break;
       case MapboxRouteType.cycling:
-        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(localDistance * 0.4); // Cycling is faster
+        adjustedDistance = localDistance * 1.2; // Cycling routes are relatively direct
+        localDuration = DistanceCalculator.calculateWalkingTimeMinutes(adjustedDistance * 0.4); // Cycling is faster
         break;
       case MapboxRouteType.driving:
       case MapboxRouteType.drivingTraffic:
+        adjustedDistance = localDistance * 1.4; // Driving routes follow roads
         localDuration = DistanceCalculator.calculateDrivingTimeMinutes(
-          distanceInMeters: localDistance,
+          distanceInMeters: adjustedDistance,
           vehicleType: 'car',
         );
         break;
     }
     
+    print('📍 RouteDetails: Local calculation result:');
+    print('   Straight-line: ${(localDistance / 1000).toStringAsFixed(2)}km');
+    print('   Adjusted (road network): ${(adjustedDistance / 1000).toStringAsFixed(2)}km');
+    
     return {
-      'distance': localDistance,
+      'distance': adjustedDistance,
       'duration': localDuration * 60.0, // Convert to seconds
-      'formattedDistance': DistanceCalculator.formatDistance(localDistance),
+      'formattedDistance': DistanceCalculator.formatDistance(adjustedDistance),
       'formattedDuration': '${localDuration}min',
       'durationMinutes': localDuration,
-      'distanceKm': localDistance / 1000,
-      'source': 'local',
+      'distanceKm': adjustedDistance / 1000,
+      'source': 'local_adjusted',
     };
   }
 
@@ -1732,61 +1725,69 @@ void didChangeDependencies() {
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+      child: Column(
         children: [
-          // Detail Bus Route Button
-          Expanded(
-            child: Container(
-              height: 48,
-              margin: const EdgeInsets.only(right: 8),
-              child: ElevatedButton.icon(
-                onPressed: () => _showBusRouteDetails(),
-                icon: const Icon(Icons.directions_bus, color: Colors.white, size: 20),
-                label: Text(
-                  'Detail Bus Route',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+          Row(
+            children: [
+              // Detail Bus Route Button
+              Expanded(
+                child: Container(
+                  height: 48,
+                  margin: const EdgeInsets.only(right: 8),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showBusRouteDetails(),
+                    icon: const Icon(Icons.directions_bus, color: Colors.white, size: 20),
+                    label: Text(
+                      'Detail Bus Route',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2196F3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
                 ),
               ),
-            ),
+              
+              // Estimate Fare Button
+              Expanded(
+                child: Container(
+                  height: 48,
+                  margin: const EdgeInsets.only(left: 8),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showFareDialog(),
+                    icon: const Icon(Icons.attach_money, color: Colors.white, size: 20),
+                    label: Text(
+                      'Estimate Fare',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           
-          // Estimate Fare Button
-          Expanded(
-            child: Container(
-              height: 48,
-              margin: const EdgeInsets.only(left: 8),
-              child: ElevatedButton.icon(
-                onPressed: () => _showFareDialog(),
-                icon: const Icon(Icons.attach_money, color: Colors.white, size: 20),
-                label: Text(
-                  'Estimate Fare',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
-          ),
+          // Debug Distance Test Button (only in debug mode)
+          if (kDebugMode) ...[
+          ],
         ],
       ),
     );

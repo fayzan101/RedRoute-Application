@@ -113,6 +113,7 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
 
   void _onTextChanged() {
     setState(() {
+      // Only show recent searches when text is empty and widget is configured to show them
       _showRecentSearches = _controller.text.isEmpty && widget.showRecentSearches;
     });
   }
@@ -185,7 +186,7 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Padding(
-      padding: widget.padding ?? const EdgeInsets.all(16.0),
+      padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -255,7 +256,14 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
                 ),
                 onTap: () {
                   setState(() {
+                    // Only show recent searches when search bar is focused and empty
                     _showRecentSearches = _controller.text.isEmpty && widget.showRecentSearches;
+                  });
+                },
+                onChanged: (value) {
+                  setState(() {
+                    // Hide recent searches when user starts typing
+                    _showRecentSearches = value.isEmpty && widget.showRecentSearches;
                   });
                 },
               );
@@ -266,6 +274,10 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
               if (pattern.length < 1) {
                 print('🔍 KarachiLocationSearch: Pattern too short, returning recent searches');
                 try {
+                  // Only return recent searches if the search bar is focused and empty
+                  if (!_showRecentSearches) {
+                    return [];
+                  }
                   return _recentSearches
                       .where((search) => search.name.isNotEmpty && search.subtitle.isNotEmpty)
                       .map((search) => UnifiedPlace.fromRecentSearch(search))
@@ -298,17 +310,14 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
               _controller.text = place.displayName;
               _addToRecentSearches(place);
               widget.onPlaceSelected?.call(place);
+              setState(() {
+                _showRecentSearches = false; // Hide recent searches after selection
+              });
             },
             emptyBuilder: (context) => _buildEmptyState(),
             loadingBuilder: (context) => _buildLoadingState(),
             errorBuilder: (context, error) => _buildErrorState(error),
           ),
-          
-          // Recent Searches Section (shown when not searching)
-          if (_showRecentSearches && _recentSearches.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildRecentSearchesSection(),
-          ],
           
           // Debug indicator (can be removed in production)
           if (_isLoading) ...[

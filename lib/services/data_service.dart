@@ -43,7 +43,7 @@ class DataService extends ChangeNotifier {
                 allStops.add(stop);
               }
             } catch (e) {
-              print('Error parsing stop: $e');
+              
               continue;
             }
           }

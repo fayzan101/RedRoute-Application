@@ -20,7 +20,7 @@ class EnhancedLocationService extends ChangeNotifier {
     _error = null;
     
     try {
-      print('📍 LocationService: Initializing location services...');
+      
       
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -28,16 +28,16 @@ class EnhancedLocationService extends ChangeNotifier {
         throw Exception('Location services are disabled. Please enable GPS in your device settings.');
       }
 
-      print('📍 LocationService: Location services are enabled');
+      
 
       // Check and request permissions
       LocationPermission permission = await Geolocator.checkPermission();
-      print('📍 LocationService: Current permission status: $permission');
+     
       
       if (permission == LocationPermission.denied) {
-        print('📍 LocationService: Requesting location permission...');
+        
         permission = await Geolocator.requestPermission();
-        print('📍 LocationService: Permission result: $permission');
+       
         
         if (permission == LocationPermission.denied) {
           throw Exception('Location permissions are denied. Please grant location access in app settings.');
@@ -49,14 +49,14 @@ class EnhancedLocationService extends ChangeNotifier {
       }
 
       _permissionGranted = true;
-      print('📍 LocationService: Location permissions granted');
+      
       
       // Get current position
       await getCurrentLocation();
       
     } catch (e) {
       _error = e.toString();
-      print('❌ LocationService: Initialization error: $e');
+      
       
       // Don't set fallback coordinates silently - let the user know there's an issue
       _currentPosition = null;
@@ -67,7 +67,7 @@ class EnhancedLocationService extends ChangeNotifier {
 
   Future<void> getCurrentLocation() async {
     if (!_permissionGranted) {
-      print('📍 LocationService: Permissions not granted, initializing...');
+      
       await initializeLocation();
       return;
     }
@@ -76,49 +76,48 @@ class EnhancedLocationService extends ChangeNotifier {
     _error = null;
     
     try {
-      print('📍 LocationService: Getting current location...');
+      
       
       // Try to get last known position first (faster)
       Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
       if (lastKnownPosition != null) {
-        print('📍 LocationService: Found last known position: ${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}');
+        
         
         // Only use last known position if it's recent (less than 5 minutes old)
         final ageInMinutes = DateTime.now().difference(lastKnownPosition.timestamp).inMinutes;
         if (ageInMinutes < 5) {
-          print('📍 LocationService: Using recent last known position (${ageInMinutes} minutes old)');
+         
           _currentPosition = lastKnownPosition;
           await _resolveAddress();
           _setLoading(false);
           return;
         } else {
-          print('📍 LocationService: Last known position is too old (${ageInMinutes} minutes), getting fresh location');
+          
         }
       } else {
-        print('📍 LocationService: No last known position available');
+        
       }
 
       // Get current position with better accuracy settings
-      print('📍 LocationService: Requesting fresh location with high accuracy...');
+      
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
         timeLimit: const Duration(seconds: 30), // Increased timeout
         forceAndroidLocationManager: false, // Use Google Play Services if available
       );
       
-      print('📍 LocationService: Got fresh position: ${position.latitude}, ${position.longitude}');
-      print('📍 LocationService: Accuracy: ${position.accuracy}m, Timestamp: ${position.timestamp}');
+     
       
       _currentPosition = position;
       await _resolveAddress();
       
     } catch (e) {
       _error = 'Failed to get current location: ${e.toString()}';
-      print('❌ LocationService: Error getting current location: $e');
+      
       
       // Don't silently use fallback coordinates - let the user know there's an issue
       if (_currentPosition == null) {
-        print('❌ LocationService: No current position available - location services may not be working');
+      
       }
       
       // Validate if current position is within reasonable Karachi bounds
@@ -128,10 +127,7 @@ class EnhancedLocationService extends ChangeNotifier {
         
         // Karachi bounds: roughly lat 24.7-25.2, lng 66.8-67.5
         if (lat < 24.7 || lat > 25.2 || lng < 66.8 || lng > 67.5) {
-          print('⚠️ LocationService: WARNING - Current position seems outside Karachi bounds!');
-          print('   Position: ($lat, $lng)');
-          print('   Expected: lat 24.7-25.2, lng 66.8-67.5');
-          print('   This may cause incorrect route calculations!');
+         
         }
       }
     } finally {
@@ -149,7 +145,7 @@ class EnhancedLocationService extends ChangeNotifier {
       );
       notifyListeners();
     } catch (e) {
-      print('Error resolving address: $e');
+     
       _currentAddress = null;
     }
   }
@@ -158,7 +154,7 @@ class EnhancedLocationService extends ChangeNotifier {
     try {
       return await MapboxService.getAddressFromCoordinates(latitude, longitude);
     } catch (e) {
-      print('Error getting address for coordinates: $e');
+      
       return null;
     }
   }
@@ -167,7 +163,7 @@ class EnhancedLocationService extends ChangeNotifier {
     try {
       return await MapboxService.getCoordinatesFromAddress(address);
     } catch (e) {
-      print('Error getting coordinates for address: $e');
+      
       return null;
     }
   }
@@ -182,7 +178,7 @@ class EnhancedLocationService extends ChangeNotifier {
         radius: radius,
       );
     } catch (e) {
-      print('Error getting nearby places: $e');
+      
       return [];
     }
   }
@@ -199,7 +195,7 @@ class EnhancedLocationService extends ChangeNotifier {
   
   /// Set fallback location (Karachi center) when user explicitly requests it
   void setFallbackLocation() {
-    print('📍 LocationService: Setting fallback location (Karachi center)');
+    
     _currentPosition = Position(
       longitude: 67.0011, // Karachi center longitude
       latitude: 24.8607,  // Karachi center latitude
@@ -218,7 +214,7 @@ class EnhancedLocationService extends ChangeNotifier {
   
   /// Force refresh current location with high accuracy
   Future<void> refreshLocation() async {
-    print('🔄 LocationService: Force refreshing location...');
+    
     _setLoading(true);
     _error = null;
     
@@ -230,15 +226,14 @@ class EnhancedLocationService extends ChangeNotifier {
         forceAndroidLocationManager: false,
       );
       
-      print('📍 LocationService: Refreshed position: ${position.latitude}, ${position.longitude}');
-      print('📍 LocationService: Accuracy: ${position.accuracy}m, Timestamp: ${position.timestamp}');
+      
       
       _currentPosition = position;
       await _resolveAddress();
       
     } catch (e) {
       _error = 'Failed to refresh location: ${e.toString()}';
-      print('❌ LocationService: Refresh error: $e');
+     
     } finally {
       _setLoading(false);
     }
@@ -305,26 +300,19 @@ class EnhancedLocationService extends ChangeNotifier {
   /// Print detailed location status to console for debugging
   void printLocationStatus() {
     final status = getLocationStatus();
-    print('📍 LocationService: Status Report');
-    print('   Has Position: ${status['hasPosition']}');
-    print('   Is Loading: ${status['isLoading']}');
-    print('   Has Error: ${status['hasError']}');
-    print('   Permission Granted: ${status['permissionGranted']}');
+    
     
     if (status['position'] != null) {
       final pos = status['position'] as Map<String, dynamic>;
-      print('   Position: ${pos['latitude']}, ${pos['longitude']}');
-      print('   Accuracy: ${pos['accuracy']}m');
-      print('   Timestamp: ${pos['timestamp']}');
-      print('   In Karachi: ${pos['isInKarachi']}');
+      
     }
     
     if (status['error'] != null) {
-      print('   Error: ${status['error']}');
+      
     }
     
     if (status['address'] != null) {
-      print('   Address: ${status['address']}');
+      
     }
   }
 } 

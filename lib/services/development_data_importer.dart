@@ -14,12 +14,12 @@ class DevelopmentDataImporter {
   static Future<bool> importFromJson() async {
     // Only allow this in debug mode
     if (!kDebugMode) {
-      print('⚠️ DevelopmentDataImporter: Import disabled in release mode');
+      
       return false;
     }
 
     try {
-      print('🔄 DevelopmentDataImporter: Starting JSON import...');
+      
       
       // Check if database is initialized
       if (!IsarDatabaseService.isInitialized) {
@@ -57,9 +57,10 @@ class DevelopmentDataImporter {
         await IsarDatabaseService.isar.placeIsars.putAll(places);
       });
 
+      
       return true;
     } catch (e) {
-    
+      
       return false;
     }
   }
@@ -67,17 +68,18 @@ class DevelopmentDataImporter {
   /// Clear all data from Isar database (development only)
   static Future<bool> clearDatabase() async {
     if (!kDebugMode) {
-      p
+
       return false;
     }
 
     try {
-      print('🗑️ DevelopmentDataImporter: Clearing database...');
+      
       await IsarDatabaseService.clearAllPlaces();
       
+     
       return true;
     } catch (e) {
-     
+      
       return false;
     }
   }
@@ -125,7 +127,6 @@ class DevelopmentDataImporter {
     try {
       final String jsonString = await rootBundle.loadString(_jsonAssetPath);
       final List<dynamic> jsonList = json.decode(jsonString);
-      
       
       
       return jsonList.isNotEmpty;

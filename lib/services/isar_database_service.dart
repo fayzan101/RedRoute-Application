@@ -14,7 +14,7 @@ class IsarDatabaseService {
     if (_isInitialized) return;
 
     try {
-      print('🗄️ IsarDatabaseService: Initializing database...');
+      
       
       // Get the documents directory
       final dir = await getApplicationDocumentsDirectory();
@@ -27,9 +27,9 @@ class IsarDatabaseService {
       );
       
       _isInitialized = true;
-      print('✅ IsarDatabaseService: Database initialized successfully');
+      
     } catch (e) {
-      print('❌ IsarDatabaseService: Error initializing database: $e');
+      
       rethrow;
     }
   }
@@ -45,24 +45,23 @@ class IsarDatabaseService {
   /// Load places from JSON file once and save to database permanently
   /// @deprecated Use DevelopmentDataImporter.importFromJson() instead
   static Future<void> loadPlacesFromJson() async {
-    print('⚠️ IsarDatabaseService: loadPlacesFromJson() is deprecated');
-    print('⚠️ IsarDatabaseService: Use DevelopmentDataImporter.importFromJson() instead');
+   
     
     if (!_isInitialized) {
       await initialize();
     }
 
     try {
-      print('📥 IsarDatabaseService: Checking if places need to be loaded...');
+      
       
       // Check if data already exists in database
       final existingCount = await isar.placeIsars.count();
       if (existingCount > 0) {
-        print('ℹ️ IsarDatabaseService: Places already loaded in database ($existingCount records)');
+        
         return;
       }
 
-      print('📥 IsarDatabaseService: Loading places from JSON file for first time...');
+      
       
       // Load JSON from assets (only on first run)
       final String jsonString = await rootBundle.loadString('assets/places1.json');
@@ -77,17 +76,16 @@ class IsarDatabaseService {
               place.lon != 0.0)
           .toList();
       
-      print('📊 IsarDatabaseService: Parsed ${places.length} places from JSON');
+      
 
       // Save to database permanently
       await isar.writeTxn(() async {
         await isar.placeIsars.putAll(places);
       });
 
-      print('✅ IsarDatabaseService: Successfully saved ${places.length} places to database permanently');
-      print('ℹ️ IsarDatabaseService: Data will persist across app restarts');
+      
     } catch (e) {
-      print('❌ IsarDatabaseService: Error loading places from JSON: $e');
+      
       rethrow;
     }
   }
@@ -104,11 +102,11 @@ class IsarDatabaseService {
 
     try {
       final lowercaseQuery = query.toLowerCase().trim();
-      print('🔍 IsarDatabaseService: Searching for "$lowercaseQuery"');
+     
       
       // Get all places and filter in memory (more reliable for complex searches)
       final allPlaces = await isar.placeIsars.where().findAll();
-      print('📊 IsarDatabaseService: Found ${allPlaces.length} total places in database');
+      
       
       // Filter places that match the query
       final results = allPlaces.where((place) {
@@ -119,7 +117,7 @@ class IsarDatabaseService {
         return name.contains(lowercaseQuery) || displayName.contains(lowercaseQuery);
       }).toList();
       
-      print('🔍 IsarDatabaseService: Found ${results.length} matching places');
+      
 
       // Sort results by relevance
       results.sort((a, b) {
@@ -145,11 +143,11 @@ class IsarDatabaseService {
       });
 
       final finalResults = results.take(20).toList();
-      print('✅ IsarDatabaseService: Returning ${finalResults.length} sorted results');
+      
       
       return finalResults;
     } catch (e) {
-      print('❌ IsarDatabaseService: Error searching places: $e');
+      
       return [];
     }
   }
@@ -166,7 +164,7 @@ class IsarDatabaseService {
           .limit(6)
           .findAll();
     } catch (e) {
-      print('❌ IsarDatabaseService: Error getting popular places: $e');
+      
       return [];
     }
   }
@@ -180,7 +178,7 @@ class IsarDatabaseService {
     try {
       return await isar.placeIsars.count();
     } catch (e) {
-      print('❌ IsarDatabaseService: Error getting total places: $e');
+      
       return 0;
     }
   }
@@ -195,9 +193,9 @@ class IsarDatabaseService {
       await isar.writeTxn(() async {
         await isar.placeIsars.clear();
       });
-      print('🗑️ IsarDatabaseService: All places cleared from database');
+      
     } catch (e) {
-      print('❌ IsarDatabaseService: Error clearing places: $e');
+      
       rethrow;
     }
   }
@@ -208,7 +206,7 @@ class IsarDatabaseService {
       await _isar!.close();
       _isar = null;
       _isInitialized = false;
-      print('🔒 IsarDatabaseService: Database closed');
+      
     }
   }
 
@@ -273,7 +271,7 @@ class IsarDatabaseService {
         'lon': place.lon,
       }).toList();
     } catch (e) {
-      print('❌ IsarDatabaseService: Error getting debug data: $e');
+      
       return [];
     }
   }

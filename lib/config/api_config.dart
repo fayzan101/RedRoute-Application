@@ -1,9 +1,6 @@
 class ApiConfig {
   // Mapbox API Configuration
-  static const String mapboxAccessToken = String.fromEnvironment(
-    'MAPBOX_ACCESS_TOKEN',
-    defaultValue: 'pk.eyJ1IjoibXRhYWhhIiwiYSI6ImNtYzhzNDdxYTBoYTgydnM5Y25sOWUxNW4ifQ.LNtkLKq7wVti_5_MyaBY-w',
-  );
+  static const String mapboxAccessToken = 'pk.eyJ1IjoibXRhYWhhIiwiYSI6ImNtYzhzNDdxYTBoYTgydnM5Y25sOWUxNW4ifQ.LNtkLKq7wVti_5_MyaBY-w';
   
   // Base URLs
   static const String mapboxBaseUrl = 'https://api.mapbox.com';

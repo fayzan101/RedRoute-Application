@@ -4,6 +4,7 @@ import '../models/route.dart';
 import '../utils/distance_calculator.dart';
 import 'data_service.dart';
 import 'mapbox_service.dart';
+import 'mapbox_directions_service.dart';
 
 class RouteFinder extends ChangeNotifier {
   final DataService _dataService;
@@ -96,7 +97,20 @@ class RouteFinder extends ChangeNotifier {
     }
     
     // If destination is not at a bus stop, find nearest stop to destination
-    final nearestToDestination = _findNearestStop(destLat, destLng, stops);
+    // Special handling for Fast University searches
+    Stop? nearestToDestination;
+    
+    // Check if this might be a Fast University search
+    if (destLat >= 24.85 && destLat <= 24.87 && destLng >= 67.26 && destLng <= 67.27) {
+      print('🎓 RouteFinder: Detected Fast University area search');
+      nearestToDestination = _findFastUniversityStop(destLat, destLng, stops);
+    }
+    
+    // If no special handling found, use regular nearest stop logic
+    if (nearestToDestination == null) {
+      nearestToDestination = _findNearestStop(destLat, destLng, stops);
+    }
+    
     if (nearestToDestination == null) return null;
     
     print('🎯 RouteFinder: Nearest stop to destination: ${nearestToDestination.name} (${nearestToDestination.routes.join(', ')})');
@@ -372,11 +386,70 @@ class RouteFinder extends ChangeNotifier {
     return null;
   }
   
+  /// Get more accurate road network distance using Mapbox when possible
+  Future<double> _getAccurateDistance(double lat1, double lng1, double lat2, double lng2) async {
+    try {
+      // Try to get road network distance from Mapbox
+      final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        startLat: lat1,
+        startLng: lng1,
+        endLat: lat2,
+        endLng: lng2,
+        routeType: MapboxRouteType.driving,
+      );
+      
+      if (routeInfo != null && routeInfo.distance > 0) {
+        print('🗺️ RouteFinder: Using Mapbox road distance: ${DistanceCalculator.formatDistance(routeInfo.distance)}');
+        return routeInfo.distance;
+      }
+    } catch (e) {
+      print('⚠️ RouteFinder: Mapbox distance calculation failed, using straight-line: $e');
+    }
+    
+    // Fallback to straight-line distance
+    final straightLineDistance = DistanceCalculator.calculateDistance(lat1, lng1, lat2, lng2);
+    print('📏 RouteFinder: Using straight-line distance: ${DistanceCalculator.formatDistance(straightLineDistance)}');
+    return straightLineDistance;
+  }
+
+  /// Special handling for Fast University searches
+  Stop? _findFastUniversityStop(double lat, double lng, List<Stop> stops) {
+    // Look for Fast University stop specifically
+    final fastUniversityStop = stops.where((stop) => 
+      stop.name.toLowerCase().contains('fast') && 
+      stop.name.toLowerCase().contains('university')
+    ).firstOrNull;
+    
+    if (fastUniversityStop != null) {
+      final distance = DistanceCalculator.calculateDistance(
+        lat, lng, fastUniversityStop.lat, fastUniversityStop.lng
+      );
+      
+      print('🎓 RouteFinder: Found Fast University stop: ${fastUniversityStop.name}');
+      print('🎓 RouteFinder: Distance to Fast University: ${DistanceCalculator.formatDistance(distance)}');
+      
+      // If user is within 5km of Fast University, prioritize it
+      if (distance <= 5000) {
+        print('🎓 RouteFinder: User is within 5km of Fast University, prioritizing it');
+        return fastUniversityStop;
+      }
+    }
+    
+    return null;
+  }
+
   Stop? _findNearestStop(double lat, double lng, List<Stop> stops) {
     if (stops.isEmpty) return null;
     
     Stop? nearest;
     double minDistance = double.infinity;
+    
+    // Debug: Check if this is for Fast University area
+    final isFastUniversityArea = (lat >= 24.85 && lat <= 24.87 && lng >= 67.26 && lng <= 67.27);
+    if (isFastUniversityArea) {
+      print('🎓 RouteFinder: Searching for nearest stop in Fast University area');
+      print('🎓 RouteFinder: User location: ($lat, $lng)');
+    }
     
     for (final stop in stops) {
       try {
@@ -387,6 +460,26 @@ class RouteFinder extends ChangeNotifier {
           stop.lng,
         );
         
+        // Debug: Show distances for Fast University and nearby stops
+        if (isFastUniversityArea || 
+            stop.name.toLowerCase().contains('fast') || 
+            stop.name.toLowerCase().contains('university') ||
+            stop.name.toLowerCase().contains('manzil') ||
+            stop.name.toLowerCase().contains('quaidabad')) {
+          print('🎓 RouteFinder: Distance to ${stop.name}: ${DistanceCalculator.formatDistance(distance)} (${stop.lat}, ${stop.lng})');
+        }
+        
+        // For Fast University area, prioritize stops that are actually closer
+        if (isFastUniversityArea) {
+          // If this is Fast University stop, give it priority if it's reasonably close
+          if (stop.name.toLowerCase().contains('fast') && distance <= 2000) {
+            print('🎓 RouteFinder: Found Fast University stop within 2km, prioritizing it');
+            nearest = stop;
+            minDistance = distance;
+            break; // Use Fast University stop if it's within 2km
+          }
+        }
+        
         if (distance < minDistance) {
           minDistance = distance;
           nearest = stop;
@@ -394,6 +487,29 @@ class RouteFinder extends ChangeNotifier {
       } catch (e) {
         // Skip invalid stop data
         continue;
+      }
+    }
+    
+    if (nearest != null) {
+      print('🎯 RouteFinder: Selected nearest stop: ${nearest.name} (${DistanceCalculator.formatDistance(minDistance)})');
+      
+      // Debug: Show why this stop was chosen for Fast University area
+      if (isFastUniversityArea) {
+        
+        
+        // Check if Fast University stop exists and show its distance
+        final fastUniversityStop = stops.where((s) => 
+          s.name.toLowerCase().contains('fast') || 
+          s.name.toLowerCase().contains('university')
+        ).firstOrNull;
+        
+        if (fastUniversityStop != null) {
+          final fastUniversityDistance = DistanceCalculator.calculateDistance(
+            lat, lng, fastUniversityStop.lat, fastUniversityStop.lng
+          );
+          print('   - Fast University stop distance: ${DistanceCalculator.formatDistance(fastUniversityDistance)}');
+          print('   - Difference: ${DistanceCalculator.formatDistance(fastUniversityDistance - minDistance)}');
+        }
       }
     }
     
@@ -497,10 +613,7 @@ class RouteFinder extends ChangeNotifier {
     
     if (proximityRouteOptions.isNotEmpty) {
       final bestProximityOption = proximityRouteOptions.first;
-      print('🚌 RouteFinder: Selected proximity-based route: ${bestProximityOption['route']} '
-            'from ${bestProximityOption['stop'].name} '
-            '(User distance: ${DistanceCalculator.formatDistance(bestProximityOption['distanceToUser'])}, '
-            'Destination distance: ${DistanceCalculator.formatDistance(bestProximityOption['distanceToDestination'])})');
+     
       
       // Show why this stop was chosen
       print('✅ RouteFinder: Chose ${bestProximityOption['stop'].name} because it\'s the closest stop to user (${bestProximityOption['priority']} priority)');
