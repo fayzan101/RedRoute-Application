@@ -1457,15 +1457,15 @@ void didChangeDependencies() {
   int _calculateTotalTime() {
     if (_currentJourney == null) return 0;
     
-    // Calculate driving times for each segment
-    final drivingTimeToBusStop = _getDrivingTimeToBusStop();
-    final drivingTimeBetweenStops = _getDrivingTimeForBusJourney();
-    final walkingTimeFromBusStop = DistanceCalculator.calculateWalkingTimeMinutes(_currentJourney!.walkingDistanceFromEnd);
+    // Sum of driving times from the 2nd, 3rd, and 4th cards
+    final drivingTimeToBusStop = _getDrivingTimeToBusStop(); // 2nd card
+    final drivingTimeForBusJourney = _getDrivingTimeForBusJourney(); // 3rd card
+    final finalLegTime = _calculateFinalLegTime(); // 4th card
     
     // Add waiting time for bus (assume 5 minutes average)
     const int busWaitingTime = 5;
     
-    return drivingTimeToBusStop + drivingTimeBetweenStops + walkingTimeFromBusStop + busWaitingTime;
+    return drivingTimeToBusStop + drivingTimeForBusJourney + finalLegTime + busWaitingTime;
   }
 
   double _calculateTotalDistance() {

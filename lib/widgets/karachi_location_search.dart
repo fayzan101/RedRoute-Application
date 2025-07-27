@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../services/karachi_places_service.dart';
-import '../services/isar_database_service.dart';
+import '../services/json_places_service.dart';
 import '../services/recent_searches_service.dart';
-import '../models/place_isar.dart';
 import '../utils/distance_calculator.dart';
 
 // Unified place type that can represent both KarachiPlace and PlaceIsar
@@ -35,12 +34,14 @@ class UnifiedPlace {
     );
   }
 
-  factory UnifiedPlace.fromPlaceIsar(PlaceIsar place) {
+
+
+  factory UnifiedPlace.fromJsonPlace(JsonPlace place) {
     return UnifiedPlace(
       name: place.name,
       lat: place.lat,
       lon: place.lon,
-      displayName: place.displayName,
+      displayName: place.formattedDisplayName,
       subtitle: place.subtitle,
       type: 'place',
     );
@@ -289,12 +290,12 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
               }
               
               try {
-                // Search in Isar database only
-                print('🔍 KarachiLocationSearch: Searching Isar database...');
-                final isarResults = await IsarDatabaseService.searchPlaces(pattern);
-                print('🔍 KarachiLocationSearch: Isar returned ${isarResults.length} results');
+                // Search in JSON places only
+                print('🔍 KarachiLocationSearch: Searching JSON places...');
+                final jsonResults = await JsonPlacesService.searchPlaces(pattern);
+                print('🔍 KarachiLocationSearch: JSON returned ${jsonResults.length} results');
                 
-                final unifiedResults = isarResults.map((place) => UnifiedPlace.fromPlaceIsar(place)).toList();
+                final unifiedResults = jsonResults.map((place) => UnifiedPlace.fromJsonPlace(place)).toList();
                 print('🔍 KarachiLocationSearch: Converted to ${unifiedResults.length} unified places');
                 
                 return unifiedResults;
@@ -328,7 +329,7 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
                 const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                 const SizedBox(width: 8),
                 Text(
-                  'Loading from Isar Database...',
+                  'Loading from JSON...',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,
