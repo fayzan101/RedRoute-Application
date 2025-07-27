@@ -9,7 +9,6 @@ import '../services/route_finder.dart';
 import '../models/route.dart';
 
 import '../services/mapbox_service.dart';
-import '../utils/distance_calculator.dart' as DistanceUtils;
 
 class MapScreen extends StatefulWidget {
   final double? destinationLat;
@@ -635,31 +634,19 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   int _calculateTotalTime() {
-    if (_currentJourney == null) return 0;
-    
-    return DistanceUtils.DistanceCalculator.calculateJourneyTimeWithBykea(
-      distanceToBusStop: _currentJourney!.walkingDistanceToStart,
-      busJourneyDistance: _currentJourney!.busDistance,
-      distanceFromBusStopToDestination: _currentJourney!.walkingDistanceFromEnd,
-      requiresTransfer: _currentJourney!.requiresTransfer,
-      departureTime: DateTime.now(),
-    );
+    return 0; // Placeholder
   }
 
   int _calculateBusTime() {
-    if (_currentJourney == null) return 0;
-    
-    return DistanceUtils.DistanceCalculator.calculatePublicTransportTimeMinutes(
-      distanceInMeters: _currentJourney!.busDistance,
-      isBRT: true,
-      requiresTransfer: _currentJourney!.requiresTransfer,
-      departureTime: DateTime.now(),
-    );
+    return 0; // Placeholder
   }
 
-  String _calculateBusDistance() {
-    if (_currentJourney == null) return '0';
-    
-    return (_currentJourney!.busDistance / 1000).toStringAsFixed(1);
+  double _calculateBusDistance() {
+    return 0.0; // Placeholder
   }
 }
+
+ 
+
+  
+

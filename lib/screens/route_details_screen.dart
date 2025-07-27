@@ -201,8 +201,23 @@ void didChangeDependencies() {
           
           // Get walking route from user to bus stop
           print('📍 RouteDetails: Getting walking route from user to bus stop');
-          print('   User: (${userPosition.latitude}, ${userPosition.longitude})');
-          print('   Bus Stop: (${currentJourney.startStop.lat}, ${currentJourney.startStop.lng})');
+          print('   User: (${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)})');
+          print('   Bus Stop: ${currentJourney.startStop.name} (${currentJourney.startStop.lat.toStringAsFixed(6)}, ${currentJourney.startStop.lng.toStringAsFixed(6)})');
+          print('   Bus Stop ID: ${currentJourney.startStop.id}');
+          print('   Bus Stop Routes: ${currentJourney.startStop.routes.join(', ')}');
+          
+          // Check for very short distances
+          final userToStopDistance = DistanceCalculator.calculateDistance(
+            userPosition.latitude, userPosition.longitude,
+            currentJourney.startStop.lat, currentJourney.startStop.lng
+          );
+          print('📍 RouteDetails: Straight-line distance to bus stop: ${userToStopDistance.toStringAsFixed(2)}m');
+          print('📍 RouteDetails: Current location to bus stop distance: ${DistanceCalculator.formatDistance(userToStopDistance)}');
+          
+          if (userToStopDistance < 10) {
+            print('⚠️ RouteDetails: WARNING - Very short distance detected (< 10m)');
+            print('   This might indicate GPS noise or identical coordinates');
+          }
           
           final walkingToBusStop = await _getWalkingRouteInfo(
             startLat: userPosition.latitude,
@@ -227,8 +242,23 @@ void didChangeDependencies() {
           
           // Get walking route from bus stop to destination
           print('📍 RouteDetails: Getting walking route from bus stop to destination');
-          print('   Bus Stop: (${currentJourney.endStop.lat}, ${currentJourney.endStop.lng})');
-          print('   Destination: (${widget.destinationLat ?? currentJourney.endStop.lat}, ${widget.destinationLng ?? currentJourney.endStop.lng})');
+          print('   Bus Stop: ${currentJourney.endStop.name} (${currentJourney.endStop.lat.toStringAsFixed(6)}, ${currentJourney.endStop.lng.toStringAsFixed(6)})');
+          print('   Bus Stop ID: ${currentJourney.endStop.id}');
+          print('   Bus Stop Routes: ${currentJourney.endStop.routes.join(', ')}');
+          print('   Destination: (${(widget.destinationLat ?? currentJourney.endStop.lat).toStringAsFixed(6)}, ${(widget.destinationLng ?? currentJourney.endStop.lng).toStringAsFixed(6)})');
+          
+          // Check for very short distances
+          final stopToDestDistance = DistanceCalculator.calculateDistance(
+            currentJourney.endStop.lat, currentJourney.endStop.lng,
+            widget.destinationLat ?? currentJourney.endStop.lat,
+            widget.destinationLng ?? currentJourney.endStop.lng
+          );
+          print('📍 RouteDetails: Straight-line distance to destination: ${stopToDestDistance.toStringAsFixed(2)}m');
+          
+          if (stopToDestDistance < 10) {
+            print('⚠️ RouteDetails: WARNING - Very short distance detected (< 10m)');
+            print('   This might indicate GPS noise or identical coordinates');
+          }
           
           final walkingToDestination = await _getWalkingRouteInfo(
             startLat: currentJourney.endStop.lat,
@@ -242,13 +272,26 @@ void didChangeDependencies() {
           print('   Distance: ${walkingToDestination['distance']}m (${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km)');
           print('   Source: ${walkingToDestination['source']}');
           
-          // Calculate total journey info
+          // Calculate total journey info with validation
           final totalDistance = walkingToBusStop['distance'] + 
                               busJourney['distance'] + 
                               walkingToDestination['distance'];
           final totalDuration = walkingToBusStop['duration'] + 
                                busJourney['duration'] + 
                                walkingToDestination['duration'];
+          
+          // Validate distance sources
+          print('📍 RouteDetails: Distance source validation:');
+          print('   Walking to bus stop: ${walkingToBusStop['source']} (${walkingToBusStop['distance']}m)');
+          print('   Bus journey: ${busJourney['source']} (${busJourney['distance']}m)');
+          print('   Walking to destination: ${walkingToDestination['source']} (${walkingToDestination['distance']}m)');
+          
+          // Check for potential double-counting
+          if (walkingToDestination['distance'] < 50 && 
+              (widget.destinationLat == currentJourney.endStop.lat && 
+               widget.destinationLng == currentJourney.endStop.lng)) {
+            print('⚠️ RouteDetails: WARNING - Destination is at bus stop, walking distance might be double-counted');
+          }
           
           print('📍 RouteDetails: Total journey calculation:');
           print('   Walking to bus stop: ${(walkingToBusStop['distance'] / 1000).toStringAsFixed(2)}km');
@@ -263,10 +306,10 @@ void didChangeDependencies() {
           
           // Get legacy journey details for compatibility
           final details = await MapboxService.getJourneyDetails(
-            startLat: currentJourney.startStop.lat,
-            startLng: currentJourney.startStop.lng,
-            endLat: currentJourney.endStop.lat,
-            endLng: currentJourney.endStop.lng,
+            startLat: userPosition.latitude,
+            startLng: userPosition.longitude,
+            endLat: widget.destinationLat ?? currentJourney.endStop.lat,
+            endLng: widget.destinationLng ?? currentJourney.endStop.lng,
             busStopLat: currentJourney.startStop.lat,
             busStopLng: currentJourney.startStop.lng,
             destinationStopLat: currentJourney.endStop.lat,
@@ -282,8 +325,8 @@ void didChangeDependencies() {
           final details = await MapboxService.getJourneyDetails(
             startLat: currentJourney.startStop.lat,
             startLng: currentJourney.startStop.lng,
-            endLat: currentJourney.endStop.lat,
-            endLng: currentJourney.endStop.lng,
+            endLat: widget.destinationLat ?? currentJourney.endStop.lat,
+            endLng: widget.destinationLng ?? currentJourney.endStop.lng,
             busStopLat: currentJourney.startStop.lat,
             busStopLng: currentJourney.startStop.lng,
             destinationStopLat: currentJourney.endStop.lat,
@@ -719,7 +762,7 @@ void didChangeDependencies() {
                     icon: Icons.directions_walk,
                     title: 'Walking',
                   value: _currentJourney != null 
-                      ? '${((_currentJourney!.walkingDistanceToStart + _currentJourney!.walkingDistanceFromEnd) / 1000).toStringAsFixed(1)} km'
+                      ? '${_calculateTotalWalkingDistance()} km'
                       : '0.0 km',
                   color: const Color(0xFF2196F3),
                   ),
@@ -829,9 +872,9 @@ void didChangeDependencies() {
               Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.access_time,
-                  title: 'Walking Time',
+                  title: 'Driving Time',
                   value: _currentJourney != null 
-                      ? '${DistanceCalculator.calculateWalkingTimeMinutes(_currentJourney!.walkingDistanceToStart)} min'
+                      ? '${_getDrivingTimeToBusStop()} min'
                       : '0 min',
                   color: Colors.blue.shade600,
                 ),
@@ -839,9 +882,9 @@ void didChangeDependencies() {
               Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.straighten,
-                  title: 'Distance',
+                  title: 'Driving Distance',
                   value: _currentJourney != null 
-                      ? '${(_currentJourney!.walkingDistanceToStart / 1000).toStringAsFixed(1)} km'
+                      ? '${_getDrivingDistanceToBusStop()} km'
                       : '0.0 km',
                   color: Colors.blue.shade600,
                 ),
@@ -1078,16 +1121,16 @@ void didChangeDependencies() {
               Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.access_time,
-                  title: 'Journey Time',
-                  value: '${_calculateBusTime()} min',
+                  title: 'Driving Time',
+                  value: '${_getDrivingTimeForBusJourney()} min',
                   color: Colors.blue.shade600,
                 ),
               ),
               Expanded(
                 child: _buildJourneyMetric(
                   icon: Icons.straighten,
-                  title: 'Journey Distance',
-                  value: '${_calculateBusDistance()} km',
+                  title: 'Driving Distance',
+                  value: '${_getDrivingDistanceForBusJourney()} km',
                   color: Colors.blue.shade600,
                 ),
               ),
@@ -1396,12 +1439,7 @@ void didChangeDependencies() {
   int _calculateBusTime() {
     if (_currentJourney == null) return 0;
     
-    return DistanceCalculator.calculatePublicTransportTimeMinutes(
-      distanceInMeters: _currentJourney!.busDistance,
-      isBRT: true,
-      requiresTransfer: _currentJourney!.requiresTransfer,
-      departureTime: DateTime.now(),
-    );
+    return DistanceCalculator.calculatePublicTransportTimeMinutes(_currentJourney!.busDistance);
   }
 
   String _calculateBusDistance() {
@@ -1419,29 +1457,41 @@ void didChangeDependencies() {
   int _calculateTotalTime() {
     if (_currentJourney == null) return 0;
     
-    return DistanceCalculator.calculateJourneyTimeWithBykea(
-      distanceToBusStop: _currentJourney!.walkingDistanceToStart,
-      busJourneyDistance: _currentJourney!.busDistance,
-      distanceFromBusStopToDestination: _currentJourney!.walkingDistanceFromEnd,
-      requiresTransfer: _currentJourney!.requiresTransfer,
-      departureTime: DateTime.now(),
-    );
+    // Calculate driving times for each segment
+    final drivingTimeToBusStop = _getDrivingTimeToBusStop();
+    final drivingTimeBetweenStops = _getDrivingTimeForBusJourney();
+    final walkingTimeFromBusStop = DistanceCalculator.calculateWalkingTimeMinutes(_currentJourney!.walkingDistanceFromEnd);
+    
+    // Add waiting time for bus (assume 5 minutes average)
+    const int busWaitingTime = 5;
+    
+    return drivingTimeToBusStop + drivingTimeBetweenStops + walkingTimeFromBusStop + busWaitingTime;
   }
 
   double _calculateTotalDistance() {
     if (_currentJourney == null) return 0;
     
-    return _currentJourney!.walkingDistanceToStart + _currentJourney!.busDistance + _currentJourney!.walkingDistanceFromEnd;
+    // Calculate driving distances for each segment
+    final drivingDistanceToBusStop = _currentJourney!.walkingDistanceToStart * 1.4; // Road network factor
+    final drivingDistanceBetweenStops = DistanceCalculator.calculateDistance(
+      _currentJourney!.startStop.lat,
+      _currentJourney!.startStop.lng,
+      _currentJourney!.endStop.lat,
+      _currentJourney!.endStop.lng,
+    ) * 1.4; // Road network factor
+    final walkingDistanceFromBusStop = _currentJourney!.walkingDistanceFromEnd;
+    
+    return drivingDistanceToBusStop + drivingDistanceBetweenStops + walkingDistanceFromBusStop;
   }
 
   int _calculateBykeaTime() {
     if (_currentJourney == null) return 0;
     
-    return DistanceCalculator.calculateDrivingTimeMinutes(
-      distanceInMeters: _currentJourney!.walkingDistanceToStart,
-      vehicleType: 'bykea',
-      departureTime: DateTime.now(),
-    );
+    final totalDistance = _currentJourney!.walkingDistanceToStart + 
+                         _currentJourney!.busDistance + 
+                         _currentJourney!.walkingDistanceFromEnd;
+    
+    return DistanceCalculator.calculateJourneyTimeWithBykea(totalDistance);
   }
 
   int _calculateFinalLegTime() {
@@ -1454,18 +1504,10 @@ void didChangeDependencies() {
       return DistanceCalculator.calculateWalkingTimeMinutes(distance);
     } else if (distance < 2000) {
       // Medium distance: rickshaw
-      return DistanceCalculator.calculateDrivingTimeMinutes(
-        distanceInMeters: distance,
-        vehicleType: 'rickshaw',
-        departureTime: DateTime.now(),
-      );
+      return DistanceCalculator.calculateRickshawTimeMinutes(distance);
     } else {
       // Long distance: Bykea
-      return DistanceCalculator.calculateDrivingTimeMinutes(
-        distanceInMeters: distance,
-        vehicleType: 'bykea',
-        departureTime: DateTime.now(),
-      );
+      return DistanceCalculator.calculateJourneyTimeWithBykea(distance);
     }
   }
 
@@ -1522,11 +1564,7 @@ void didChangeDependencies() {
     
         // Rickshaw suggestion (for medium distances)
     if (distance >= 500 && distance < 2000) {
-      final rickshawTime = DistanceCalculator.calculateDrivingTimeMinutes(
-        distanceInMeters: distance,
-        vehicleType: 'rickshaw',
-        departureTime: DateTime.now(),
-      );
+      final rickshawTime = DistanceCalculator.calculateRickshawTimeMinutes(distance);
       suggestions.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1556,11 +1594,7 @@ void didChangeDependencies() {
     
     // Bykea suggestion (for longer distances)
     if (distance >= 1000) {
-      final bykeaTime = DistanceCalculator.calculateDrivingTimeMinutes(
-        distanceInMeters: distance,
-        vehicleType: 'bykea',
-        departureTime: DateTime.now(),
-      );
+      final bykeaTime = DistanceCalculator.calculateJourneyTimeWithBykea(distance);
       suggestions.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1603,6 +1637,13 @@ void didChangeDependencies() {
     required double endLng,
     MapboxRouteType routeType = MapboxRouteType.drivingTraffic,
   }) async {
+    // Validate coordinates and distance
+    final validation = _validateRouteRequest(startLat, startLng, endLat, endLng, routeType);
+    if (!validation['isValid']) {
+      print('❌ RouteDetails: Invalid route request: ${validation['reason']}');
+      return validation['fallbackResult'];
+    }
+    
     // Calculate straight-line distance for comparison
     final straightLineDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
     print('📍 RouteDetails: Straight-line distance: ${(straightLineDistance / 1000).toStringAsFixed(2)}km');
@@ -1664,10 +1705,7 @@ void didChangeDependencies() {
       case MapboxRouteType.driving:
       case MapboxRouteType.drivingTraffic:
         adjustedDistance = localDistance * 1.4; // Driving routes follow roads
-        localDuration = DistanceCalculator.calculateDrivingTimeMinutes(
-          distanceInMeters: adjustedDistance,
-          vehicleType: 'car',
-        );
+        localDuration = DistanceCalculator.calculateDrivingTimeMinutes(adjustedDistance);
         break;
     }
     
@@ -1693,13 +1731,177 @@ void didChangeDependencies() {
     required double endLat,
     required double endLng,
   }) async {
+    // Validate and fix coordinate precision
+    final validatedCoords = _validateAndFixCoordinates(startLat, startLng, endLat, endLng);
+    
     return await _getMapboxRouteInfo(
-      startLat: startLat,
-      startLng: startLng,
-      endLat: endLat,
-      endLng: endLng,
+      startLat: validatedCoords['startLat']!,
+      startLng: validatedCoords['startLng']!,
+      endLat: validatedCoords['endLat']!,
+      endLng: validatedCoords['endLng']!,
       routeType: MapboxRouteType.walking,
     );
+  }
+
+  /// Validate and fix coordinate precision issues
+  Map<String, double> _validateAndFixCoordinates(double startLat, double startLng, double endLat, double endLng) {
+    // Round to 6 decimal places for consistency (approximately 1 meter precision)
+    final roundedStartLat = double.parse(startLat.toStringAsFixed(6));
+    final roundedStartLng = double.parse(startLng.toStringAsFixed(6));
+    final roundedEndLat = double.parse(endLat.toStringAsFixed(6));
+    final roundedEndLng = double.parse(endLng.toStringAsFixed(6));
+    
+    // Check if coordinates are identical (within 1 meter)
+    final distance = DistanceCalculator.calculateDistance(roundedStartLat, roundedStartLng, roundedEndLat, roundedEndLng);
+    
+    if (distance < 1.0) {
+      print('⚠️ RouteDetails: WARNING - Coordinates are nearly identical (${distance.toStringAsFixed(2)}m)');
+      print('   Start: (${roundedStartLat}, ${roundedStartLng})');
+      print('   End: (${roundedEndLat}, ${roundedEndLng})');
+      print('   This will result in very short or zero distance');
+    }
+    
+    return {
+      'startLat': roundedStartLat,
+      'startLng': roundedStartLng,
+      'endLat': roundedEndLat,
+      'endLng': roundedEndLng,
+    };
+  }
+
+  /// Validate route request and provide fallback for invalid cases
+  Map<String, dynamic> _validateRouteRequest(double startLat, double startLng, double endLat, double endLng, MapboxRouteType routeType) {
+    // Check coordinate validity
+    if (!DistanceCalculator.isValidCoordinate(startLat, startLng) || 
+        !DistanceCalculator.isValidCoordinate(endLat, endLng)) {
+      return {
+        'isValid': false,
+        'reason': 'Invalid coordinates',
+        'fallbackResult': _createFallbackResult(0.0, routeType),
+      };
+    }
+    
+    // Calculate straight-line distance
+    final distance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+    
+    // Check for very short distances
+    if (distance < 1.0) {
+      return {
+        'isValid': false,
+        'reason': 'Distance too short (< 1m)',
+        'fallbackResult': _createFallbackResult(distance, routeType),
+      };
+    }
+    
+    // Check for unreasonably long distances (more than 100km)
+    if (distance > 100000) {
+      return {
+        'isValid': false,
+        'reason': 'Distance too long (> 100km)',
+        'fallbackResult': _createFallbackResult(distance, routeType),
+      };
+    }
+    
+    return {
+      'isValid': true,
+      'reason': 'Valid request',
+      'fallbackResult': null,
+    };
+  }
+
+  /// Create fallback result for invalid requests
+  Map<String, dynamic> _createFallbackResult(double distance, MapboxRouteType routeType) {
+    final adjustedDistance = distance * 1.3; // Apply road network factor
+    final duration = _calculateFallbackDuration(adjustedDistance, routeType);
+    
+    return {
+      'distance': adjustedDistance,
+      'duration': duration * 60.0, // Convert to seconds
+      'formattedDistance': DistanceCalculator.formatDistance(adjustedDistance),
+      'formattedDuration': '${duration}min',
+      'durationMinutes': duration,
+      'distanceKm': adjustedDistance / 1000,
+      'source': 'fallback',
+    };
+  }
+
+  /// Calculate fallback duration based on route type
+  int _calculateFallbackDuration(double distance, MapboxRouteType routeType) {
+    switch (routeType) {
+      case MapboxRouteType.walking:
+        return DistanceCalculator.calculateWalkingTimeMinutes(distance);
+      case MapboxRouteType.cycling:
+        return DistanceCalculator.calculateCyclingTimeMinutes(distance);
+      case MapboxRouteType.driving:
+      case MapboxRouteType.drivingTraffic:
+        return DistanceCalculator.calculateDrivingTimeMinutes(distance);
+    }
+  }
+
+  /// Get driving distance to bus stop (with road network adjustment)
+  String _getDrivingDistanceToBusStop() {
+    if (_currentJourney == null) return '0.0';
+    
+    // Use road network adjustment for driving distance
+    final straightLineDistance = _currentJourney!.walkingDistanceToStart;
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return (drivingDistance / 1000).toStringAsFixed(1);
+  }
+
+  /// Get driving time to bus stop
+  int _getDrivingTimeToBusStop() {
+    if (_currentJourney == null) return 0;
+    
+    // Use road network adjustment for driving distance
+    final straightLineDistance = _currentJourney!.walkingDistanceToStart;
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
+  }
+
+  /// Get driving distance for bus journey (from bus stop to destination)
+  String _getDrivingDistanceForBusJourney() {
+    if (_currentJourney == null) return '0.0';
+    
+    // Calculate distance from boarding bus stop to destination bus stop
+    final straightLineDistance = DistanceCalculator.calculateDistance(
+      _currentJourney!.startStop.lat,
+      _currentJourney!.startStop.lng,
+      _currentJourney!.endStop.lat,
+      _currentJourney!.endStop.lng,
+    );
+    
+    // Apply road network adjustment for driving
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return (drivingDistance / 1000).toStringAsFixed(1);
+  }
+
+  /// Get driving time for bus journey (from bus stop to destination)
+  int _getDrivingTimeForBusJourney() {
+    if (_currentJourney == null) return 0;
+    
+    // Calculate distance from boarding bus stop to destination bus stop
+    final straightLineDistance = DistanceCalculator.calculateDistance(
+      _currentJourney!.startStop.lat,
+      _currentJourney!.startStop.lng,
+      _currentJourney!.endStop.lat,
+      _currentJourney!.endStop.lng,
+    );
+    
+    // Apply road network adjustment for driving
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
+  }
+
+  /// Calculate total walking distance
+  String _calculateTotalWalkingDistance() {
+    if (_currentJourney == null) return '0.0';
+    
+    final totalWalkingDistance = _currentJourney!.walkingDistanceToStart + _currentJourney!.walkingDistanceFromEnd;
+    return (totalWalkingDistance / 1000).toStringAsFixed(1);
   }
 
   /// Get driving route information using Mapbox
@@ -1709,11 +1911,14 @@ void didChangeDependencies() {
     required double endLat,
     required double endLng,
   }) async {
+    // Validate and fix coordinate precision
+    final validatedCoords = _validateAndFixCoordinates(startLat, startLng, endLat, endLng);
+    
     return await _getMapboxRouteInfo(
-      startLat: startLat,
-      startLng: startLng,
-      endLat: endLat,
-      endLng: endLng,
+      startLat: validatedCoords['startLat']!,
+      startLng: validatedCoords['startLng']!,
+      endLat: validatedCoords['endLat']!,
+      endLng: validatedCoords['endLng']!,
       routeType: MapboxRouteType.drivingTraffic,
     );
   }

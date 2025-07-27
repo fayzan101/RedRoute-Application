@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import 'secure_token_service.dart';
+import 'mapbox_service.dart';
+import '../utils/distance_calculator.dart';
 
 /// Route types supported by Mapbox Directions API
 enum MapboxRouteType {
@@ -49,12 +51,18 @@ class MapboxDirectionsService {
         return null;
       }
       
-      // Test network connectivity first
-      final isConnected = await SecureTokenService.isRateLimited();
-      if (isConnected) {
+      // Check rate limiting first
+      final isRateLimited = await SecureTokenService.isRateLimited();
+      if (isRateLimited) {
         print('❌ MapboxDirectionsService: Rate limited, skipping request');
+        print('💡 MapboxDirectionsService: To clear rate limit, call SecureTokenService.clearRateLimit()');
         return null;
       }
+      
+      // Add 2-second delay before API call to prevent rate limiting
+      print('⏳ MapboxDirectionsService: Waiting 2 seconds before API call...');
+      await Future.delayed(const Duration(seconds: 2));
+      print('✅ MapboxDirectionsService: Delay completed, proceeding with API call');
       
       // Get access token securely
       final accessToken = await _accessToken;
@@ -65,6 +73,11 @@ class MapboxDirectionsService {
       }
       
       // Build coordinates string in longitude,latitude format (Mapbox requirement)
+      print('🟢 DEBUG: Preparing to call Mapbox Directions API');
+      print('🟢 DEBUG: startLat=$startLat, startLng=$startLng, endLat=$endLat, endLng=$endLng');
+      print('🟢 DEBUG: Coordinate format check:');
+      print('   Start: lat=$startLat, lng=$startLng');
+      print('   End: lat=$endLat, lng=$endLng');
       String coordinates = '$startLng,$startLat';
       if (waypoints != null && waypoints.isNotEmpty) {
         for (int i = 0; i < waypoints.length; i += 2) {
@@ -74,11 +87,15 @@ class MapboxDirectionsService {
         }
       }
       coordinates += ';$endLng,$endLat';
-      
+      print('🟢 DEBUG: Constructed coordinates string: $coordinates');
+      print('🟢 DEBUG: Mapbox expects: longitude,latitude format');
+      print('🟢 DEBUG: We are sending: $coordinates (lng,lat format) ✅');
+
       // Validate route type
       String routeTypeStr = _validateRouteType(routeType);
-      
-      // Build query parameters with required values
+      print('🟢 DEBUG: Route type: $routeTypeStr');
+
+      // Build query parameters with required values - ensure consistency
       final Map<String, String> queryParams = {
         'access_token': accessToken,
         'geometries': 'geojson',
@@ -86,22 +103,18 @@ class MapboxDirectionsService {
         'steps': steps.toString(),
         'continue_straight': continueStraight.toString(),
         'alternatives': alternatives.toString(),
+        'language': 'en',
       };
       
-      // Add annotations only if requested and with proper format
-      if (annotations) {
-        queryParams['annotations'] = 'duration,distance,congestion,speed';
-      }
-      
-      // Use Uri.https() instead of Uri.parse().replace() to avoid query string errors
-      final Uri uri = Uri.https(
-        'api.mapbox.com',
-        '/directions/v5/mapbox/$routeTypeStr/$coordinates',
-        queryParams,
-      );
+      // Always include annotations for consistent distance calculations
+      queryParams['annotations'] = 'duration,distance,congestion,speed';
 
-      // Log the full URI for debugging (with token masked)
+      // Use consistent URL construction with .json extension
+      final Uri uri = Uri.parse('https://api.mapbox.com/directions/v5/mapbox/$routeTypeStr/$coordinates.json')
+          .replace(queryParameters: queryParams);
       final debugUri = uri.toString().replaceAll(accessToken, '***');
+      print('🟢 DEBUG: Full Mapbox URI: $debugUri');
+      print("Final request URL: $uri");
       
       
       final response = await http.get(uri).timeout(const Duration(seconds: 30));
@@ -121,11 +134,22 @@ class MapboxDirectionsService {
           
           final directionsResponse = MapboxDirectionsResponse.fromJson(data);
           
-          // Log route information for debugging
-          if (directionsResponse.routes.isNotEmpty) {
-            final route = directionsResponse.routes.first;
-            print('📏 MapboxDirectionsService: Route distance: ${route.distance}m, duration: ${route.duration}s');
-          }
+                // Log route information for debugging
+      if (directionsResponse.routes.isNotEmpty) {
+        final route = directionsResponse.routes.first;
+        print('📏 MapboxDirectionsService: Route distance: ${route.distance}m, duration: ${route.duration}s');
+        print('📏 MapboxDirectionsService: Route distance in km: ${(route.distance / 1000).toStringAsFixed(3)}km');
+        
+        // Validate distance makes sense
+        final straightLineDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
+        final ratio = route.distance / straightLineDistance;
+        print('📏 MapboxDirectionsService: Straight-line distance: ${straightLineDistance.toStringAsFixed(2)}m');
+        print('📏 MapboxDirectionsService: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
+        
+        if (ratio < 0.5 || ratio > 3.0) {
+          print('⚠️ MapboxDirectionsService: WARNING - Route distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+        }
+      }
           
           return directionsResponse;
         } catch (e) {
@@ -172,7 +196,7 @@ class MapboxDirectionsService {
         endLng: endLng,
         routeType: routeType,
         alternatives: false,
-        steps: false,
+        steps: true, // Include steps for consistency
         annotations: true,
       );
       
@@ -210,7 +234,7 @@ class MapboxDirectionsService {
         endLng: endLng,
         routeType: routeType,
         alternatives: true,
-        steps: false,
+        steps: true, // Include steps for consistency
         annotations: true,
       );
       
@@ -277,6 +301,58 @@ class MapboxDirectionsService {
       routeType: MapboxRouteType.cycling,
     );
   }
+
+  /// Compare results between MapboxDirectionsService and MapboxService for debugging
+  static Future<void> compareWithMapboxService({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    try {
+      print('🔍 MapboxDirectionsService: Comparing with MapboxService...');
+      
+      // Get result from MapboxDirectionsService
+      final directionsResult = await getRouteInfo(
+        startLat: startLat,
+        startLng: startLng,
+        endLat: endLat,
+        endLng: endLng,
+        routeType: MapboxRouteType.drivingTraffic,
+      );
+      
+      // Get result from MapboxService
+      final mapboxResult = await MapboxService.getRouteDirections(
+        startLat: startLat,
+        startLng: startLng,
+        endLat: endLat,
+        endLng: endLng,
+        profile: 'driving-traffic',
+      );
+      
+      if (directionsResult != null && mapboxResult != null) {
+        final directionsDistance = directionsResult.distance;
+        final mapboxDistance = mapboxResult['distance'] as double? ?? 0.0;
+        final difference = (directionsDistance - mapboxDistance).abs();
+        final percentageDiff = (difference / directionsDistance) * 100;
+        
+        print('📊 Comparison Results:');
+        print('   MapboxDirectionsService: ${directionsDistance.toStringAsFixed(2)}m');
+        print('   MapboxService: ${mapboxDistance.toStringAsFixed(2)}m');
+        print('   Difference: ${difference.toStringAsFixed(2)}m (${percentageDiff.toStringAsFixed(1)}%)');
+        
+        if (percentageDiff > 5.0) {
+          print('⚠️ WARNING: Significant difference detected (>5%)');
+        } else {
+          print('✅ Results are consistent');
+        }
+      } else {
+        print('❌ One or both services returned null');
+      }
+    } catch (e) {
+      print('❌ Error comparing services: $e');
+    }
+  }
   
   /// Validate if coordinates are within valid geographic bounds
   static bool _isValidCoordinate(double lat, double lng) {
@@ -293,7 +369,7 @@ class MapboxDirectionsService {
       case MapboxRouteType.cycling:
         return 'cycling';
       case MapboxRouteType.drivingTraffic:
-        return 'driving'; // Use 'driving' instead of 'driving-traffic' for better compatibility
+        return 'driving-traffic'; // Use actual driving-traffic for real-time data
       default:
         return 'driving'; // Default fallback
     }

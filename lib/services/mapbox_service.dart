@@ -348,7 +348,7 @@ class MapboxService {
         startLng: startLng,
         endLat: endLat,
         endLng: endLng,
-        profile: 'driving',
+        profile: 'driving-traffic', // Use driving-traffic for consistency with MapboxDirectionsService
       );
       
       // Get cycling directions (for Bykea comparison)

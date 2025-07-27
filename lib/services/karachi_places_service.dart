@@ -66,7 +66,7 @@ class KarachiPlacesService {
     if (_isLoaded) return;
 
     try {
-      print('📍 KarachiPlacesService: Loading places from places1.json...');
+      
       final String jsonString = await rootBundle.loadString('assets/places1.json');
       final List<dynamic> jsonList = json.decode(jsonString);
       
@@ -79,9 +79,9 @@ class KarachiPlacesService {
           .toList();
       
       _isLoaded = true;
-      print('📍 KarachiPlacesService: Loaded ${_places.length} places');
+      
     } catch (e) {
-      print('❌ KarachiPlacesService: Error loading places: $e');
+      
       _places = [];
     }
   }
@@ -89,7 +89,7 @@ class KarachiPlacesService {
   /// Search places with efficient filtering and caching
   static List<KarachiPlace> searchPlaces(String query) {
     if (!_isLoaded) {
-      print('⚠️ KarachiPlacesService: Places not loaded yet');
+    
       return [];
     }
 
@@ -181,4 +181,124 @@ class KarachiPlacesService {
 
   /// Check if places are loaded
   static bool get isLoaded => _isLoaded;
+
+  /// Extract coordinates for a specific location name
+  static Future<Map<String, double>?> extractCoordinatesForLocation(String locationName) async {
+    if (!_isLoaded) {
+      await loadPlaces();
+    }
+
+    if (_places.isEmpty) {
+      print('❌ KarachiPlacesService: No places loaded');
+      return null;
+    }
+
+    final lowercaseQuery = locationName.toLowerCase().trim();
+    print('🔍 KarachiPlacesService: Searching for coordinates for "$locationName"');
+
+    // First try exact match
+    for (final place in _places) {
+      if (place.name.toLowerCase() == lowercaseQuery) {
+        print('✅ KarachiPlacesService: Found exact match for "$locationName"');
+        print('   Coordinates: (${place.lat}, ${place.lon})');
+        return {
+          'latitude': place.lat,
+          'longitude': place.lon,
+        };
+      }
+    }
+
+    // Then try partial matches
+    final queryWords = lowercaseQuery.split(' ');
+    List<KarachiPlace> matches = [];
+
+    for (final place in _places) {
+      final placeName = place.name.toLowerCase();
+      final displayName = place.displayName.toLowerCase();
+
+      // Check if all query words are found in the place name
+      bool isMatch = true;
+      for (final word in queryWords) {
+        if (word.isNotEmpty && !placeName.contains(word) && !displayName.contains(word)) {
+          isMatch = false;
+          break;
+        }
+      }
+
+      if (isMatch) {
+        matches.add(place);
+      }
+    }
+
+    // Sort matches by relevance
+    matches.sort((a, b) {
+      final aName = a.name.toLowerCase();
+      final bName = b.name.toLowerCase();
+
+      // Exact matches first
+      final aExact = aName == lowercaseQuery;
+      final bExact = bName == lowercaseQuery;
+
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      // Starts with query
+      final aStartsWith = aName.startsWith(lowercaseQuery);
+      final bStartsWith = bName.startsWith(lowercaseQuery);
+
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+
+      // Alphabetical order
+      return aName.compareTo(bName);
+    });
+
+    if (matches.isNotEmpty) {
+      final bestMatch = matches.first;
+      print('✅ KarachiPlacesService: Found best match for "$locationName"');
+      print('   Match: "${bestMatch.name}"');
+      print('   Coordinates: (${bestMatch.lat}, ${bestMatch.lon})');
+      return {
+        'latitude': bestMatch.lat,
+        'longitude': bestMatch.lon,
+      };
+    }
+
+    print('❌ KarachiPlacesService: No coordinates found for "$locationName"');
+    return null;
+  }
+
+  /// Get all places with coordinates (for debugging)
+  static List<Map<String, dynamic>> getAllPlacesWithCoordinates() {
+    if (!_isLoaded) return [];
+
+    return _places.map((place) => {
+      'name': place.name,
+      'displayName': place.displayName,
+      'latitude': place.lat,
+      'longitude': place.lon,
+    }).toList();
+  }
+
+  /// Search for specific coordinates (for debugging)
+  static List<Map<String, dynamic>> searchCoordinates(String query) {
+    if (!_isLoaded) return [];
+
+    final lowercaseQuery = query.toLowerCase().trim();
+    final results = <Map<String, dynamic>>[];
+
+    for (final place in _places) {
+      final placeName = place.name.toLowerCase();
+      if (placeName.contains(lowercaseQuery)) {
+        results.add({
+          'name': place.name,
+          'displayName': place.displayName,
+          'latitude': place.lat,
+          'longitude': place.lon,
+        });
+      }
+    }
+
+    return results.take(10).toList(); // Limit to 10 results
+  }
 } 

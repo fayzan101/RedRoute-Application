@@ -23,9 +23,9 @@ class SecureTokenService {
       await prefs.setString(_saltKey, salt);
       await prefs.setString(_tokenKey, hashedToken);
       
-      print('🔐 SecureTokenService: Token stored securely');
+      print('');
     } catch (e) {
-      print('❌ SecureTokenService: Error storing token: $e');
+      print('');
     }
   }
   
@@ -38,7 +38,7 @@ class SecureTokenService {
       final hashedToken = prefs.getString(_tokenKey);
       
       if (salt == null || hashedToken == null) {
-        print('ℹ️ SecureTokenService: Initializing with default token');
+        print('');
         // Store the default token on first run
         final defaultToken = _getDefaultToken();
         await storeToken(defaultToken);
@@ -49,7 +49,7 @@ class SecureTokenService {
       // In a real implementation, you'd decrypt the stored token
       return _getDefaultToken();
     } catch (e) {
-      print('❌ SecureTokenService: Error retrieving token: $e');
+      print('');
       return _getDefaultToken();
     }
   }
@@ -74,9 +74,9 @@ class SecureTokenService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
       await prefs.remove(_saltKey);
-      print('🔐 SecureTokenService: Token cleared');
+      print('');
     } catch (e) {
-      print('❌ SecureTokenService: Error clearing token: $e');
+      print('');
     }
   }
   
@@ -124,16 +124,17 @@ class SecureTokenService {
       
       // Allow up to 30 requests per minute (more reasonable for mapping app)
       if (requestCount >= 30) {
-        print('⚠️ SecureTokenService: Rate limit reached (30 requests/minute)');
+        print('🚫 SecureTokenService: Rate limited - ${requestCount} requests in current minute');
         return true;
       }
       
       // Increment counter
       await _updateRateLimitData(prefs, requestCount + 1, lastResetTime);
+      print('✅ SecureTokenService: Request ${requestCount + 1}/30 allowed');
       return false;
       
     } catch (e) {
-      print('❌ SecureTokenService: Error checking rate limit: $e');
+      
       return false; // Allow request if rate limiting fails
     }
   }
@@ -152,9 +153,8 @@ class SecureTokenService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_rateLimitKey);
-      print('🔐 SecureTokenService: Rate limit cleared');
     } catch (e) {
-      print('❌ SecureTokenService: Error clearing rate limit: $e');
+      print('');
     }
   }
 } 

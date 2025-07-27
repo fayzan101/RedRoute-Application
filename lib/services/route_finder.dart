@@ -5,6 +5,7 @@ import '../utils/distance_calculator.dart';
 import 'data_service.dart';
 import 'mapbox_service.dart';
 import 'mapbox_directions_service.dart';
+import 'secure_token_service.dart';
 
 class RouteFinder extends ChangeNotifier {
   final DataService _dataService;
@@ -18,6 +19,9 @@ class RouteFinder extends ChangeNotifier {
     required double destLat,
     required double destLng,
   }) async {
+    // Clear any existing rate limit data to ensure fresh API calls
+    await clearRateLimit();
+    
     await _dataService.loadBRTData();
     
     final stops = _dataService.stops;
@@ -50,12 +54,12 @@ class RouteFinder extends ChangeNotifier {
     }
     
     // Check if destination is at a bus stop (within 50 meters)
-    final destinationStop = _findExactBusStop(destLat, destLng, stops);
+    final destinationStop = await _findExactBusStop(destLat, destLng, stops);
     if (destinationStop != null) {
       print('🎯 RouteFinder: Destination is at bus stop: ${destinationStop.name} (${destinationStop.routes.join(', ')})');
       
       // Find best boarding stop for user to reach this exact destination stop
-      final bestBoardingStop = _findBestBoardingStop(
+      final bestBoardingStop = await _findBestBoardingStop(
         userLat,
         userLng,
         destinationStop,
@@ -108,7 +112,7 @@ class RouteFinder extends ChangeNotifier {
     
     // If no special handling found, use regular nearest stop logic
     if (nearestToDestination == null) {
-      nearestToDestination = _findNearestStop(destLat, destLng, stops);
+      nearestToDestination = await _findNearestStop(destLat, destLng, stops);
     }
     
     if (nearestToDestination == null) return null;
@@ -116,7 +120,7 @@ class RouteFinder extends ChangeNotifier {
     print('🎯 RouteFinder: Nearest stop to destination: ${nearestToDestination.name} (${nearestToDestination.routes.join(', ')})');
     
     // Find best boarding stop for user
-    final bestBoardingStop = _findBestBoardingStop(
+    final bestBoardingStop = await _findBestBoardingStop(
       userLat,
       userLng,
       nearestToDestination,
@@ -165,13 +169,16 @@ class RouteFinder extends ChangeNotifier {
     required double destLng,
     int maxRoutes = 3,
   }) async {
+    // Clear any existing rate limit data to ensure fresh API calls
+    await clearRateLimit();
+    
     await _dataService.loadBRTData();
     
     final stops = _dataService.stops;
     if (stops.isEmpty) return [];
     
     // Check if destination is at a bus stop (within 50 meters)
-    final destinationStop = _findExactBusStop(destLat, destLng, stops);
+    final destinationStop = await _findExactBusStop(destLat, destLng, stops);
     if (destinationStop != null) {
       print('🎯 RouteFinder: Destination is at bus stop: ${destinationStop.name} (${destinationStop.routes.join(', ')})');
       
@@ -182,7 +189,7 @@ class RouteFinder extends ChangeNotifier {
       
       if (viableStops.isEmpty) {
         // If no direct route, find transfer options
-        final transferStop = _findTransferRoute(userLat, userLng, destinationStop, stops);
+        final transferStop = await _findTransferRoute(userLat, userLng, destinationStop, stops);
         if (transferStop != null) {
           final journey = await _createEnhancedJourney(
             userLat: userLat,
@@ -198,7 +205,7 @@ class RouteFinder extends ChangeNotifier {
       }
       
       // Get multiple route options to the exact destination stop
-      final routeOptions = _getMultipleRouteOptions(
+      final routeOptions = await _getMultipleRouteOptions(
         userLat, userLng, destinationStop, viableStops, maxRoutes
       );
       
@@ -230,7 +237,7 @@ class RouteFinder extends ChangeNotifier {
     }
     
     // If destination is not at a bus stop, find nearest stop to destination
-    final nearestToDestination = _findNearestStop(destLat, destLng, stops);
+    final nearestToDestination = await _findNearestStop(destLat, destLng, stops);
     if (nearestToDestination == null) return [];
     
     // Find all viable boarding stops with route-based prioritization
@@ -240,7 +247,7 @@ class RouteFinder extends ChangeNotifier {
     
     if (viableStops.isEmpty) {
       // If no direct route, find transfer options
-      final transferStop = _findTransferRoute(userLat, userLng, nearestToDestination, stops);
+      final transferStop = await _findTransferRoute(userLat, userLng, nearestToDestination, stops);
       if (transferStop != null) {
         final journey = await _createEnhancedJourney(
           userLat: userLat,
@@ -256,7 +263,7 @@ class RouteFinder extends ChangeNotifier {
     }
     
     // Get multiple route options using the new destination-oriented logic
-    final routeOptions = _getMultipleRouteOptions(
+    final routeOptions = await _getMultipleRouteOptions(
       userLat, userLng, nearestToDestination, viableStops, maxRoutes
     );
     
@@ -287,13 +294,14 @@ class RouteFinder extends ChangeNotifier {
     return journeys.take(maxRoutes).toList();
   }
   
-  List<Map<String, dynamic>> _getMultipleRouteOptions(
+  /// Get multiple route options using Mapbox driving profile distance
+  Future<List<Map<String, dynamic>>> _getMultipleRouteOptions(
     double userLat,
     double userLng,
     Stop destinationStop,
     List<Stop> viableStops,
     int maxOptions,
-  ) {
+  ) async {
     // Group stops by their routes to the destination
     final Map<String, List<Stop>> routeGroups = {};
     
@@ -311,13 +319,13 @@ class RouteFinder extends ChangeNotifier {
     final List<Map<String, dynamic>> allRouteOptions = [];
     
     // PRIORITY 1: Find routes that go directly to destination or very close to it
-    final directRouteOptions = _findDirectRouteOptions(
+    final directRouteOptions = await _findDirectRouteOptions(
       userLat, userLng, destinationStop, routeGroups
     );
     allRouteOptions.addAll(directRouteOptions);
     
     // PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
-    final proximityRouteOptions = _findProximityBasedRouteOptions(
+    final proximityRouteOptions = await _findProximityBasedRouteOptions(
       userLat, userLng, destinationStop, routeGroups
     );
     allRouteOptions.addAll(proximityRouteOptions);
@@ -354,14 +362,22 @@ class RouteFinder extends ChangeNotifier {
   }
   
   /// Check if destination is exactly at a bus stop (within 100 meters)
-  Stop? _findExactBusStop(double lat, double lng, List<Stop> stops) {
+  /// Find exact bus stop using optimized 2-level filtering strategy
+  Future<Stop?> _findExactBusStop(double lat, double lng, List<Stop> stops) async {
     if (stops.isEmpty) return null;
     
     const double exactStopThreshold = 100; // 100 meters - destination is at this bus stop
     
+    print('🚀 RouteFinder: Using OPTIMIZED 2-level filtering for exact bus stop...');
+    print('📍 RouteFinder: User location: (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})');
+    
+    // STEP 1: Filter using Haversine Distance (Locally) - NO API CALLS
+    print('🔹 Step 1: Local Haversine filtering for exact stops...');
+    final List<Map<String, dynamic>> candidateStops = [];
+    
     for (final stop in stops) {
       try {
-        final distance = DistanceCalculator.calculateDistance(
+        final localDistance = DistanceCalculator.calculateDistance(
           lat,
           lng,
           stop.lat,
@@ -370,19 +386,81 @@ class RouteFinder extends ChangeNotifier {
         
         // Debug: Print distance to Fast University specifically
         if (stop.name.toLowerCase().contains('fast') || stop.name.toLowerCase().contains('university')) {
-          print('🎓 RouteFinder: Distance to ${stop.name}: ${DistanceCalculator.formatDistance(distance)}');
+          print('🎓 RouteFinder: Local distance to ${stop.name}: ${DistanceCalculator.formatDistance(localDistance)}');
         }
         
-        if (distance <= exactStopThreshold) {
-          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (distance: ${DistanceCalculator.formatDistance(distance)})');
-          return stop;
+        // Add to candidates if within reasonable distance (500m)
+        if (localDistance <= 500) {
+          candidateStops.add({
+            'stop': stop,
+            'localDistance': localDistance,
+          });
         }
       } catch (e) {
-        // Skip invalid stop data
+        print('⚠️ RouteFinder: Error calculating local distance to ${stop.name}: $e');
         continue;
       }
     }
     
+    // Sort by local distance
+    candidateStops.sort((a, b) => a['localDistance'].compareTo(b['localDistance']));
+    
+    print('🔹 Step 1 Complete: Found ${candidateStops.length} candidate exact stops');
+    for (int i = 0; i < candidateStops.length; i++) {
+      final candidate = candidateStops[i];
+      final stop = candidate['stop'] as Stop;
+      final localDistance = candidate['localDistance'] as double;
+      print('   ${i + 1}. ${stop.name}: ${DistanceCalculator.formatDistance(localDistance)}');
+    }
+    
+    if (candidateStops.isEmpty) {
+      print('❌ RouteFinder: No candidate exact stops found within 500m');
+      return null;
+    }
+    
+    // STEP 2: Use Mapbox Directions API for candidates only
+    print('🔹 Step 2: Mapbox driving distance for ${candidateStops.length} exact stop candidates...');
+    
+    for (final candidate in candidateStops) {
+      final stop = candidate['stop'] as Stop;
+      final localDistance = candidate['localDistance'] as double;
+      
+      try {
+        print('🗺️ RouteFinder: Getting Mapbox route for exact stop ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
+        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+          startLat: lat,
+          startLng: lng,
+          endLat: stop.lat,
+          endLng: stop.lng,
+          routeType: MapboxRouteType.driving,
+        );
+        
+        double drivingDistance;
+        if (routeInfo != null && routeInfo.distance > 0) {
+          drivingDistance = routeInfo.distance;
+          print('✅ RouteFinder: ${stop.name} - Mapbox driving distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        } else {
+          // Fallback to local distance if Mapbox fails
+          drivingDistance = localDistance * 1.4; // Apply road network factor
+          print('⚠️ RouteFinder: ${stop.name} - Mapbox failed, using adjusted local distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        }
+        
+        if (drivingDistance <= exactStopThreshold) {
+          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (driving distance: ${DistanceCalculator.formatDistance(drivingDistance)})');
+          return stop;
+        }
+      } catch (e) {
+        print('⚠️ RouteFinder: Mapbox error for ${stop.name}: $e, using fallback');
+        // Use fallback calculation
+        final drivingDistance = localDistance * 1.4;
+        if (drivingDistance <= exactStopThreshold) {
+          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (fallback distance: ${DistanceCalculator.formatDistance(drivingDistance)})');
+          return stop;
+        }
+      }
+    }
+    
+    print('❌ RouteFinder: No exact bus stop found within ${exactStopThreshold}m driving distance');
     return null;
   }
   
@@ -438,107 +516,285 @@ class RouteFinder extends ChangeNotifier {
     return null;
   }
 
-  Stop? _findNearestStop(double lat, double lng, List<Stop> stops) {
+  /// Find nearest stop using optimized 2-level filtering strategy
+  Future<Stop?> _findNearestStop(double lat, double lng, List<Stop> stops) async {
     if (stops.isEmpty) return null;
     
-    Stop? nearest;
-    double minDistance = double.infinity;
+    print('🚀 RouteFinder: Using OPTIMIZED 2-level filtering strategy');
+    print('📍 RouteFinder: User location: (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})');
+    print('📊 RouteFinder: Total stops to evaluate: ${stops.length}');
     
     // Debug: Check if this is for Fast University area
     final isFastUniversityArea = (lat >= 24.85 && lat <= 24.87 && lng >= 67.26 && lng <= 67.27);
     if (isFastUniversityArea) {
       print('🎓 RouteFinder: Searching for nearest stop in Fast University area');
-      print('🎓 RouteFinder: User location: ($lat, $lng)');
     }
+    
+    // STEP 1: Filter using Haversine Distance (Locally) - NO API CALLS
+    print('🔹 Step 1: Local Haversine filtering...');
+    final List<Map<String, dynamic>> candidateStops = [];
     
     for (final stop in stops) {
       try {
-        final distance = DistanceCalculator.calculateDistance(
+        final localDistance = DistanceCalculator.calculateDistance(
           lat,
           lng,
           stop.lat,
           stop.lng,
         );
         
-        // Debug: Show distances for Fast University and nearby stops
-        if (isFastUniversityArea || 
-            stop.name.toLowerCase().contains('fast') || 
-            stop.name.toLowerCase().contains('university') ||
-            stop.name.toLowerCase().contains('manzil') ||
-            stop.name.toLowerCase().contains('quaidabad')) {
-          print('🎓 RouteFinder: Distance to ${stop.name}: ${DistanceCalculator.formatDistance(distance)} (${stop.lat}, ${stop.lng})');
+        // Debug: Show all stops within 10km for troubleshooting
+        if (localDistance <= 10000) {
+          print('🔍 RouteFinder: ${stop.name} - Local distance: ${DistanceCalculator.formatDistance(localDistance)} (${stop.lat.toStringAsFixed(6)}, ${stop.lng.toStringAsFixed(6)})');
+        }
+        
+        // Special debugging for Manzil stops
+        if (stop.name.toLowerCase().contains('manzil')) {
+          print('🔍 RouteFinder: MANZIL STOP FOUND - ${stop.name}');
+          print('   ID: ${stop.id}');
+          print('   Coordinates: (${stop.lat.toStringAsFixed(6)}, ${stop.lng.toStringAsFixed(6)})');
+          print('   Routes: ${stop.routes.join(', ')}');
+          print('   Local distance: ${DistanceCalculator.formatDistance(localDistance)}');
         }
         
         // For Fast University area, prioritize stops that are actually closer
         if (isFastUniversityArea) {
           // If this is Fast University stop, give it priority if it's reasonably close
-          if (stop.name.toLowerCase().contains('fast') && distance <= 2000) {
+          if (stop.name.toLowerCase().contains('fast') && localDistance <= 2000) {
             print('🎓 RouteFinder: Found Fast University stop within 2km, prioritizing it');
-            nearest = stop;
-            minDistance = distance;
-            break; // Use Fast University stop if it's within 2km
+            return stop; // Return immediately for Fast University
           }
         }
         
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearest = stop;
+        // Add to candidates if within reasonable distance (10km)
+        if (localDistance <= 10000) {
+          candidateStops.add({
+            'stop': stop,
+            'localDistance': localDistance,
+          });
         }
       } catch (e) {
-        // Skip invalid stop data
+        print('⚠️ RouteFinder: Error calculating local distance to ${stop.name}: $e');
         continue;
       }
     }
     
-    if (nearest != null) {
-      print('🎯 RouteFinder: Selected nearest stop: ${nearest.name} (${DistanceCalculator.formatDistance(minDistance)})');
+    // Sort by local distance and take top 1 candidate (single API call)
+    candidateStops.sort((a, b) => a['localDistance'].compareTo(b['localDistance']));
+    final topCandidates = candidateStops.take(1).toList();
+    
+    print('🔹 Step 1 Complete: Found ${topCandidates.length} candidate stops');
+    for (int i = 0; i < topCandidates.length; i++) {
+      final candidate = topCandidates[i];
+      final stop = candidate['stop'] as Stop;
+      final localDistance = candidate['localDistance'] as double;
+      print('   ${i + 1}. ${stop.name}: ${DistanceCalculator.formatDistance(localDistance)}');
+    }
+    
+    if (topCandidates.isEmpty) {
+      print('❌ RouteFinder: No candidate stops found within 10km');
+      return null;
+    }
+    
+    // STEP 2: Use Mapbox Directions API for top 1 candidate only (single API call)
+    print('🔹 Step 2: Mapbox driving distance for top ${topCandidates.length} candidate (MAX 1 API call)...');
+    Stop? nearest;
+    double minDistance = double.infinity;
+    
+    // Check if we should skip API calls due to rate limiting
+    bool skipApiCalls = false;
+    
+    for (final candidate in topCandidates) {
+      final stop = candidate['stop'] as Stop;
+      final localDistance = candidate['localDistance'] as double;
       
-      // Debug: Show why this stop was chosen for Fast University area
-      if (isFastUniversityArea) {
-        
-        
-        // Check if Fast University stop exists and show its distance
-        final fastUniversityStop = stops.where((s) => 
-          s.name.toLowerCase().contains('fast') || 
-          s.name.toLowerCase().contains('university')
-        ).firstOrNull;
-        
-        if (fastUniversityStop != null) {
-          final fastUniversityDistance = DistanceCalculator.calculateDistance(
-            lat, lng, fastUniversityStop.lat, fastUniversityStop.lng
-          );
-          print('   - Fast University stop distance: ${DistanceCalculator.formatDistance(fastUniversityDistance)}');
-          print('   - Difference: ${DistanceCalculator.formatDistance(fastUniversityDistance - minDistance)}');
+      // Skip API calls if we're rate limited
+      if (skipApiCalls) {
+        print('⏭️ RouteFinder: Skipping API call for ${stop.name} due to rate limiting, using local distance');
+        final drivingDistance = localDistance * 1.4;
+        if (drivingDistance < minDistance) {
+          minDistance = drivingDistance;
+          nearest = stop;
+          print('🔄 RouteFinder: New nearest stop (local fallback): ${stop.name} (${DistanceCalculator.formatDistance(drivingDistance)})');
         }
+        continue;
+      }
+      
+      try {
+        print('🗺️ RouteFinder: Getting Mapbox route for ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
+        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+          startLat: lat,
+          startLng: lng,
+          endLat: stop.lat,
+          endLng: stop.lng,
+          routeType: MapboxRouteType.driving,
+        );
+        
+        double drivingDistance;
+        if (routeInfo != null && routeInfo.distance > 0) {
+          drivingDistance = routeInfo.distance;
+          print('✅ RouteFinder: ${stop.name} - Mapbox driving distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        } else {
+          // Fallback to local distance if Mapbox fails
+          drivingDistance = localDistance * 1.4; // Apply road network factor
+          print('⚠️ RouteFinder: ${stop.name} - Mapbox failed, using adjusted local distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        }
+        
+        if (drivingDistance < minDistance) {
+          minDistance = drivingDistance;
+          nearest = stop;
+          print('🔄 RouteFinder: New nearest stop found: ${stop.name} (${DistanceCalculator.formatDistance(drivingDistance)})');
+        }
+      } catch (e) {
+        print('⚠️ RouteFinder: Mapbox error for ${stop.name}: $e, using fallback');
+        // Check if this is a rate limiting error
+        if (e.toString().contains('rate') || e.toString().contains('Rate')) {
+          print('🚫 RouteFinder: Rate limiting detected, skipping remaining API calls');
+          skipApiCalls = true;
+        }
+        // Use fallback calculation
+        final drivingDistance = localDistance * 1.4;
+        if (drivingDistance < minDistance) {
+          minDistance = drivingDistance;
+          nearest = stop;
+          print('🔄 RouteFinder: New nearest stop (fallback): ${stop.name} (${DistanceCalculator.formatDistance(drivingDistance)})');
+        }
+      }
+    }
+    
+    if (nearest != null) {
+      print('🎯 RouteFinder: FINAL SELECTION - ${nearest.name} (${DistanceCalculator.formatDistance(minDistance)})');
+      print('📍 RouteFinder: Selected stop coordinates: (${nearest.lat.toStringAsFixed(6)}, ${nearest.lng.toStringAsFixed(6)})');
+      print('📍 RouteFinder: Selected stop routes: ${nearest.routes.join(', ')}');
+      
+      // Validate the selection
+      final localDistanceToSelected = DistanceCalculator.calculateDistance(lat, lng, nearest.lat, nearest.lng);
+      print('🔍 RouteFinder: Validation - Local distance to selected stop: ${DistanceCalculator.formatDistance(localDistanceToSelected)}');
+      
+      if (minDistance > 10000) {
+        print('⚠️ RouteFinder: WARNING - Selected stop is very far (${DistanceCalculator.formatDistance(minDistance)})');
+        print('⚠️ RouteFinder: This might indicate an issue with the selection algorithm');
+      }
+    } else {
+      // Fallback: if no API calls succeeded, use the closest local distance
+      print('🔄 RouteFinder: No API calls succeeded, using local distance fallback');
+      if (topCandidates.isNotEmpty) {
+        final fallbackCandidate = topCandidates.first;
+        final fallbackStop = fallbackCandidate['stop'] as Stop;
+        final fallbackDistance = fallbackCandidate['localDistance'] as double;
+        nearest = fallbackStop;
+        minDistance = fallbackDistance * 1.4; // Apply road network factor
+        print('🎯 RouteFinder: FALLBACK SELECTION - ${fallbackStop.name} (${DistanceCalculator.formatDistance(minDistance)})');
       }
     }
     
     return nearest;
   }
   
-  List<Stop> _findMultipleNearestStops(double lat, double lng, List<Stop> stops, int count) {
+  /// Clear rate limit data (for debugging)
+  static Future<void> clearRateLimit() async {
+    await SecureTokenService.clearRateLimit();
+    print('🧹 RouteFinder: Rate limit data cleared');
+  }
+
+  /// Find multiple nearest stops using optimized 2-level filtering strategy
+  Future<List<Stop>> _findMultipleNearestStops(double lat, double lng, List<Stop> stops, int count) async {
     if (stops.isEmpty) return [];
     
-    final sortedStops = stops.toList();
-    sortedStops.sort((a, b) {
-      try {
-        final distanceA = DistanceCalculator.calculateDistance(lat, lng, a.lat, a.lng);
-        final distanceB = DistanceCalculator.calculateDistance(lat, lng, b.lat, b.lng);
-        return distanceA.compareTo(distanceB);
-      } catch (e) {
-        return 0;
-      }
-    });
+    print('🚀 RouteFinder: Using OPTIMIZED 2-level filtering to find $count nearest bus stops...');
+    print('📍 RouteFinder: User location: (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})');
     
-    return sortedStops.take(count).toList();
+    // STEP 1: Filter using Haversine Distance (Locally) - NO API CALLS
+    print('🔹 Step 1: Local Haversine filtering...');
+    final List<Map<String, dynamic>> candidateStops = [];
+    
+    for (final stop in stops) {
+      try {
+        final localDistance = DistanceCalculator.calculateDistance(lat, lng, stop.lat, stop.lng);
+        
+        // Add to candidates if within reasonable distance (10km)
+        if (localDistance <= 10000) {
+          candidateStops.add({
+            'stop': stop,
+            'localDistance': localDistance,
+          });
+        }
+      } catch (e) {
+        print('⚠️ RouteFinder: Error calculating local distance to ${stop.name}: $e');
+        continue;
+      }
+    }
+    
+    // Sort by local distance and take top 1 candidate (single API call)
+    candidateStops.sort((a, b) => a['localDistance'].compareTo(b['localDistance']));
+    final topCandidates = candidateStops.take(1).toList();
+    
+    print('🔹 Step 1 Complete: Found ${topCandidates.length} candidate stops');
+    
+    if (topCandidates.isEmpty) {
+      print('❌ RouteFinder: No candidate stops found within 10km');
+      return [];
+    }
+    
+    // STEP 2: Use Mapbox Directions API for top 1 candidate only (single API call)
+    print('🔹 Step 2: Mapbox driving distance for top ${topCandidates.length} candidate (MAX 1 API call)...');
+    final List<Map<String, dynamic>> stopDistances = [];
+    
+    for (final candidate in topCandidates) {
+      final stop = candidate['stop'] as Stop;
+      final localDistance = candidate['localDistance'] as double;
+      
+      try {
+        print('🗺️ RouteFinder: Getting Mapbox route for ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
+        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+          startLat: lat,
+          startLng: lng,
+          endLat: stop.lat,
+          endLng: stop.lng,
+          routeType: MapboxRouteType.driving,
+        );
+        
+        double drivingDistance;
+        if (routeInfo != null && routeInfo.distance > 0) {
+          drivingDistance = routeInfo.distance;
+          print('✅ RouteFinder: ${stop.name} - Mapbox driving distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        } else {
+          // Fallback to local distance if Mapbox fails
+          drivingDistance = localDistance * 1.4; // Apply road network factor
+          print('⚠️ RouteFinder: ${stop.name} - Mapbox failed, using adjusted local distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+        }
+        
+        stopDistances.add({
+          'stop': stop,
+          'distance': drivingDistance,
+        });
+      } catch (e) {
+        print('⚠️ RouteFinder: Mapbox error for ${stop.name}: $e, using fallback');
+        // Use fallback calculation
+        final drivingDistance = localDistance * 1.4;
+        stopDistances.add({
+          'stop': stop,
+          'distance': drivingDistance,
+        });
+      }
+    }
+    
+    // Sort by driving distance
+    stopDistances.sort((a, b) => a['distance'].compareTo(b['distance']));
+    
+    // Return the top N stops
+    final result = stopDistances.take(count).map((item) => item['stop'] as Stop).toList();
+    print('🎯 RouteFinder: Returning ${result.length} nearest stops');
+    return result;
   }
   
-  Stop? _findBestBoardingStop(
+    /// Find best boarding stop using Mapbox driving profile distance
+  Future<Stop?> _findBestBoardingStop(
     double userLat,
     double userLng,
     Stop destinationStop,
     List<Stop> allStops,
-  ) {
+  ) async {
     // Find stops that share routes with destination stop
     print('🎯 RouteFinder: Finding stops that can reach destination: ${destinationStop.name}');
     print('🎯 RouteFinder: Destination routes: ${destinationStop.routes.join(', ')}');
@@ -555,22 +811,60 @@ class RouteFinder extends ChangeNotifier {
     
     if (viableStops.isEmpty) {
       // If no direct route, find transfer options
-      return _findTransferRoute(userLat, userLng, destinationStop, allStops);
+      return await _findTransferRoute(userLat, userLng, destinationStop, allStops);
     }
     
-    // Prioritize routes that actually go to the destination
-    // Instead of just finding the nearest stop, find the best route-based option
-    return _findBestRouteBasedBoardingStop(
-      userLat, userLng, destinationStop, viableStops
-    );
+    // OPTIMIZATION: Use local distance filtering first, then only 1 API call
+    print('🚀 RouteFinder: Using OPTIMIZED approach - local filtering + 1 API call');
+    
+    // Step 1: Calculate local distances for all viable stops
+    final List<Map<String, dynamic>> stopDistances = [];
+    for (final stop in viableStops) {
+      final localDistance = DistanceCalculator.calculateDistance(userLat, userLng, stop.lat, stop.lng);
+      stopDistances.add({
+        'stop': stop,
+        'localDistance': localDistance,
+      });
+    }
+    
+    // Step 2: Sort by local distance and take the closest one
+    stopDistances.sort((a, b) => a['localDistance'].compareTo(b['localDistance']));
+    final closestStop = stopDistances.first['stop'] as Stop;
+    final localDistance = stopDistances.first['localDistance'] as double;
+    
+    print('🎯 RouteFinder: Closest stop by local distance: ${closestStop.name} (${DistanceCalculator.formatDistance(localDistance)})');
+    
+    // Step 3: Make only 1 API call to verify the closest stop
+    try {
+      print('🗺️ RouteFinder: Making 1 API call to verify ${closestStop.name}...');
+      final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        startLat: userLat,
+        startLng: userLng,
+        endLat: closestStop.lat,
+        endLng: closestStop.lng,
+        routeType: MapboxRouteType.driving,
+      );
+      
+      if (routeInfo != null && routeInfo.distance > 0) {
+        print('✅ RouteFinder: ${closestStop.name} - Mapbox driving distance: ${DistanceCalculator.formatDistance(routeInfo.distance)}');
+        return closestStop;
+      } else {
+        print('⚠️ RouteFinder: Mapbox failed for ${closestStop.name}, using local distance');
+        return closestStop;
+      }
+    } catch (e) {
+      print('⚠️ RouteFinder: Mapbox error for ${closestStop.name}: $e, using local distance');
+      return closestStop;
+    }
   }
   
-  Stop? _findBestRouteBasedBoardingStop(
+  /// Find best route-based boarding stop using Mapbox driving profile distance
+  Future<Stop?> _findBestRouteBasedBoardingStop(
     double userLat,
     double userLng,
     Stop destinationStop,
     List<Stop> viableStops,
-  ) {
+  ) async {
     // Group stops by their routes to the destination
     final Map<String, List<Stop>> routeGroups = {};
     
@@ -587,7 +881,7 @@ class RouteFinder extends ChangeNotifier {
     print('🛣️ RouteFinder: Analyzing ${routeGroups.length} routes to destination');
     
     // PRIORITY 1: Find routes that go directly to destination or very close to it
-    final directRouteOptions = _findDirectRouteOptions(
+    final directRouteOptions = await _findDirectRouteOptions(
       userLat, userLng, destinationStop, routeGroups
     );
     
@@ -607,7 +901,7 @@ class RouteFinder extends ChangeNotifier {
     
     // PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
     print('📍 RouteFinder: No direct routes found, using proximity-based approach');
-    final proximityRouteOptions = _findProximityBasedRouteOptions(
+    final proximityRouteOptions = await _findProximityBasedRouteOptions(
       userLat, userLng, destinationStop, routeGroups
     );
     
@@ -616,7 +910,7 @@ class RouteFinder extends ChangeNotifier {
      
       
       // Show why this stop was chosen
-      print('✅ RouteFinder: Chose ${bestProximityOption['stop'].name} because it\'s the closest stop to user (${bestProximityOption['priority']} priority)');
+      
       
       return bestProximityOption['stop'] as Stop;
     }
@@ -634,22 +928,24 @@ class RouteFinder extends ChangeNotifier {
     return null;
   }
   
-  /// PRIORITY 1: Find routes that go directly to destination or very close to it
-  List<Map<String, dynamic>> _findDirectRouteOptions(
+  /// PRIORITY 1: Find routes that go directly to destination using local distance only (no API calls)
+  Future<List<Map<String, dynamic>>> _findDirectRouteOptions(
     double userLat,
     double userLng,
     Stop destinationStop,
     Map<String, List<Stop>> routeGroups,
-  ) {
+  ) async {
     final List<Map<String, dynamic>> directOptions = [];
     const double veryCloseThreshold = 1000; // 1km - very close to destination
     const double closeThreshold = 2000; // 2km - close to destination
+    
+    print('🚀 RouteFinder: Using LOCAL DISTANCE ONLY for direct route options (no API calls)');
     
     for (final entry in routeGroups.entries) {
       final routeName = entry.key;
       final stopsOnRoute = entry.value;
       
-      print('   📍 Route $routeName: Finding closest stop to user that goes to destination');
+      print('   📍 Route $routeName: Finding closest stop to user using local distance');
       
       // Find the stop CLOSEST TO USER on this route that goes to destination
       Stop? closestStopToUser;
@@ -662,15 +958,15 @@ class RouteFinder extends ChangeNotifier {
           continue;
         }
         
-        // Calculate distance from this stop to destination
-        final distanceToDestination = DistanceCalculator.calculateDistance(
-          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-        );
-        
-        // Calculate distance from user to this stop
+        // Calculate distance from user to this stop using LOCAL distance only
         final distanceToUser = DistanceCalculator.calculateDistance(
           userLat, userLng, stop.lat, stop.lng
-        );
+        ) * 1.4; // Apply road network factor
+        
+        // Calculate distance from this stop to destination using LOCAL distance only
+        final distanceToDestination = DistanceCalculator.calculateDistance(
+          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
+        ) * 1.4; // Apply road network factor
         
         // Check if this route goes directly to the destination stop (0 distance)
         if (distanceToDestination == 0) {
@@ -707,9 +1003,10 @@ class RouteFinder extends ChangeNotifier {
       
       // Add the CLOSEST stop to user on this route (if any found)
       if (closestStopToUser != null) {
+        // Calculate distance to destination for the selected stop using LOCAL distance
         final distanceToDestination = DistanceCalculator.calculateDistance(
           closestStopToUser.lat, closestStopToUser.lng, destinationStop.lat, destinationStop.lng
-        );
+        ) * 1.4; // Apply road network factor
         
         String priority;
         if (distanceToDestination == 0) {
@@ -751,20 +1048,22 @@ class RouteFinder extends ChangeNotifier {
     return directOptions;
   }
   
-  /// PRIORITY 2: Find the closest stop from user's location that leads to closest stop to destination
-  List<Map<String, dynamic>> _findProximityBasedRouteOptions(
+  /// PRIORITY 2: Find the closest stop from user's location using local distance only (no API calls)
+  Future<List<Map<String, dynamic>>> _findProximityBasedRouteOptions(
     double userLat,
     double userLng,
     Stop destinationStop,
     Map<String, List<Stop>> routeGroups,
-  ) {
+  ) async {
     final List<Map<String, dynamic>> proximityOptions = [];
+    
+    print('🚀 RouteFinder: Using LOCAL DISTANCE ONLY for proximity-based options (no API calls)');
     
     for (final entry in routeGroups.entries) {
       final routeName = entry.key;
       final stopsOnRoute = entry.value;
       
-      print('   📍 Route $routeName: Finding closest stop to user');
+      print('   📍 Route $routeName: Finding closest stop to user using local distance');
       
       // Find the stop CLOSEST TO USER on this route
       Stop? closestStopToUser;
@@ -777,15 +1076,36 @@ class RouteFinder extends ChangeNotifier {
           continue;
         }
         
-        // Calculate distance from user to this stop
+        // Calculate distance from user to this stop using LOCAL distance only
         final distanceToUser = DistanceCalculator.calculateDistance(
           userLat, userLng, stop.lat, stop.lng
-        );
+        ) * 1.4; // Apply road network factor
         
-        // Calculate distance from this stop to destination
-        final distanceToDestination = DistanceCalculator.calculateDistance(
+        // Calculate distance from this stop to destination using Mapbox driving distance
+        double distanceToDestination;
+        try {
+          final routeInfo = await MapboxDirectionsService.getRouteInfo(
+            startLat: stop.lat,
+            startLng: stop.lng,
+            endLat: destinationStop.lat,
+            endLng: destinationStop.lng,
+            routeType: MapboxRouteType.driving,
+          );
+          
+          if (routeInfo != null && routeInfo.distance > 0) {
+            distanceToDestination = routeInfo.distance;
+          } else {
+            // Fallback to local distance if Mapbox fails
+            distanceToDestination = DistanceCalculator.calculateDistance(
           stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-        );
+            ) * 1.4; // Apply road network factor
+          }
+        } catch (e) {
+          // Fallback to local distance if Mapbox fails
+          distanceToDestination = DistanceCalculator.calculateDistance(
+            stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
+          ) * 1.4; // Apply road network factor
+        }
         
         // Find the stop closest to user on this route
         if (distanceToUser < minDistanceToUser) {
@@ -805,9 +1125,10 @@ class RouteFinder extends ChangeNotifier {
       }
       
       if (closestStopToUser != null) {
+        // Calculate distance to destination for the selected stop using LOCAL distance
         final distanceToDestination = DistanceCalculator.calculateDistance(
           closestStopToUser.lat, closestStopToUser.lng, destinationStop.lat, destinationStop.lng
-        );
+        ) * 1.4; // Apply road network factor
         
         proximityOptions.add({
           'route': routeName,
@@ -828,12 +1149,13 @@ class RouteFinder extends ChangeNotifier {
     return proximityOptions;
   }
   
-  Stop? _findTransferRoute(
+  /// Find transfer route using Mapbox driving profile distance
+  Future<Stop?> _findTransferRoute(
     double userLat,
     double userLng,
     Stop destinationStop,
     List<Stop> allStops,
-  ) {
+  ) async {
     // Simple transfer logic: find stops that can connect to destination via transfer
     final transferStops = <Stop>[];
     
@@ -850,7 +1172,7 @@ class RouteFinder extends ChangeNotifier {
       }
     }
     
-    return _findNearestStop(userLat, userLng, transferStops);
+    return await _findNearestStop(userLat, userLng, transferStops);
   }
   
   Future<Journey?> _createEnhancedJourney({
@@ -1203,12 +1525,10 @@ class RouteFinder extends ChangeNotifier {
   }
   
   int _calculateTotalJourneyTime(Journey journey) {
-    return DistanceCalculator.calculateJourneyTimeWithBykea(
-      distanceToBusStop: journey.walkingDistanceToStart,
-      busJourneyDistance: journey.busDistance,
-      distanceFromBusStopToDestination: journey.walkingDistanceFromEnd,
-      requiresTransfer: journey.requiresTransfer,
-      departureTime: DateTime.now(),
+    return DistanceCalculator.calculateTotalJourneyTime(
+      walkingDistanceToStart: journey.walkingDistanceToStart,
+      busDistance: journey.busDistance,
+      walkingDistanceFromEnd: journey.walkingDistanceFromEnd,
     );
   }
   
