@@ -320,7 +320,92 @@ class HomeTab extends StatelessWidget {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Karachi Location Search
+            // Enter Your Location Section
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search bar for location
+                KarachiLocationSearch(
+                  onPlaceSelected: (place) {
+                    // Set the selected location as current location
+                    final locationService = context.read<EnhancedLocationService>();
+                    locationService.setCustomLocation(place.lat, place.lon);
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Location set to: ${place.displayName}'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  onRouteRequested: (place) {
+                    // Set the selected location as current location
+                    final locationService = context.read<EnhancedLocationService>();
+                    locationService.setCustomLocation(place.lat, place.lon);
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Location set to: ${place.displayName}'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  hintText: 'Search for your location',
+                  showPopularPlaces: false,
+                  showSearchIcon: true,
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Use Current Location Button
+                Consumer<EnhancedLocationService>(
+                  builder: (context, locationService, child) {
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: locationService.isLoading 
+                          ? null 
+                          : () async {
+                              await locationService.getCurrentLocation();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Using current location'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                        icon: locationService.isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location),
+                        label: Text(
+                          locationService.isLoading 
+                            ? 'Detecting...' 
+                            : 'Use Current Location',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Where do you want to go section
             Text(
               'Where do you want to go?',
               style: Theme.of(context).textTheme.headlineSmall,

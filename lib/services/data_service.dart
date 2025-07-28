@@ -7,6 +7,7 @@ import '../models/route.dart';
 class DataService extends ChangeNotifier {
   List<Stop>? _stops;
   List<BusRoute>? _routes;
+  Map<String, dynamic>? _cachedRouteData; // Cache for route sequence data
   
   List<Stop> get stops => _stops ?? [];
   List<BusRoute> get routes => _routes ?? [];
@@ -25,6 +26,9 @@ class DataService extends ChangeNotifier {
       }
       
       final Map<String, dynamic> data = json.decode(response);
+      
+      // Cache the route data for sequence ordering
+      _cachedRouteData = data;
       
       // Handle both new and old data formats
       final List<Stop> allStops = [];
@@ -100,17 +104,72 @@ class DataService extends ChangeNotifier {
       }
     }
     
-    // Create route objects
+    // Create route objects with proper sequence order
     _routes = routeStopsMap.entries.map((entry) {
-      // Sort stops by a logical order (you might want to implement a better sorting logic)
-      final sortedStops = entry.value..sort((a, b) => a.id.compareTo(b.id));
+      final routeName = entry.key;
+      final stops = entry.value;
+      
+      // IMPROVED: Sort stops by their actual sequence in the route
+      // This preserves the order from the JSON data instead of sorting by ID
+      final sortedStops = _sortStopsByRouteSequence(routeName, stops);
       
       return BusRoute(
-        name: entry.key,
+        name: routeName,
         stops: sortedStops,
-        color: _getRouteColor(entry.key),
+        color: _getRouteColor(routeName),
       );
     }).toList();
+  }
+  
+  /// Sort stops by their actual sequence in the route based on JSON data order
+  List<Stop> _sortStopsByRouteSequence(String routeName, List<Stop> stops) {
+    // Try to load the original route data to get proper sequence
+    try {
+      // Load the JSON data to get the original stop sequence
+      final routeData = _loadRouteDataFromJson();
+      final routeInfo = routeData['routes']?.firstWhere(
+        (route) => route['routeName'] == routeName,
+        orElse: () => null,
+      );
+      
+      if (routeInfo != null) {
+        final routeStops = routeInfo['stops'] as List<dynamic>;
+        final stopIdOrder = routeStops.map((stop) => stop['stopId'] as String).toList();
+        
+        // Sort stops based on their position in the original route sequence
+        stops.sort((a, b) {
+          final aIndex = stopIdOrder.indexOf(a.id);
+          final bIndex = stopIdOrder.indexOf(b.id);
+          
+          // If both stops are in the sequence, sort by their position
+          if (aIndex != -1 && bIndex != -1) {
+            return aIndex.compareTo(bIndex);
+          }
+          // If only one is in the sequence, prioritize the one that is
+          if (aIndex != -1) return -1;
+          if (bIndex != -1) return 1;
+          // If neither is in the sequence, sort by ID as fallback
+          return a.id.compareTo(b.id);
+        });
+      }
+    } catch (e) {
+      print('⚠️ DataService: Error sorting stops for route $routeName: $e');
+      // Fallback to ID sorting if JSON parsing fails
+      stops.sort((a, b) => a.id.compareTo(b.id));
+    }
+    
+    return stops;
+  }
+  
+  /// Load route data from JSON for proper sequence ordering
+  Map<String, dynamic> _loadRouteDataFromJson() {
+    // Use cached route data if available
+    if (_cachedRouteData != null) {
+      return _cachedRouteData!;
+    }
+    
+    // Fallback to empty map if no cached data
+    return {'routes': []};
   }
   
   String _getRouteColor(String routeName) {

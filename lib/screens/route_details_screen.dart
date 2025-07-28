@@ -199,8 +199,8 @@ void didChangeDependencies() {
           // Get accurate route information using Mapbox Directions API
           final Map<String, dynamic> routeDetails = {};
           
-          // Get walking route from user to bus stop
-          print('📍 RouteDetails: Getting walking route from user to bus stop');
+          // Get driving route from user to bus stop
+          print('📍 RouteDetails: Getting driving route from user to bus stop');
           print('   User: (${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)})');
           print('   Bus Stop: ${currentJourney.startStop.name} (${currentJourney.startStop.lat.toStringAsFixed(6)}, ${currentJourney.startStop.lng.toStringAsFixed(6)})');
           print('   Bus Stop ID: ${currentJourney.startStop.id}');
@@ -219,17 +219,17 @@ void didChangeDependencies() {
             print('   This might indicate GPS noise or identical coordinates');
           }
           
-          final walkingToBusStop = await _getWalkingRouteInfo(
+          final drivingToBusStop = await _getDrivingRouteToBusStop(
             startLat: userPosition.latitude,
             startLng: userPosition.longitude,
             endLat: currentJourney.startStop.lat,
             endLng: currentJourney.startStop.lng,
           );
-          routeDetails['walkingToBusStop'] = walkingToBusStop;
+          routeDetails['drivingToBusStop'] = drivingToBusStop;
           
-          print('📍 RouteDetails: Walking to bus stop result:');
-          print('   Distance: ${walkingToBusStop['distance']}m (${(walkingToBusStop['distance'] / 1000).toStringAsFixed(2)}km)');
-          print('   Source: ${walkingToBusStop['source']}');
+          print('📍 RouteDetails: Driving to bus stop result:');
+          print('   Distance: ${drivingToBusStop['distance']}m (${(drivingToBusStop['distance'] / 1000).toStringAsFixed(2)}km)');
+          print('   Source: ${drivingToBusStop['source']}');
           
           // Get driving route for bus journey (simulated)
           final busJourney = await _getDrivingRouteInfo(
@@ -273,16 +273,16 @@ void didChangeDependencies() {
           print('   Source: ${walkingToDestination['source']}');
           
           // Calculate total journey info with validation
-          final totalDistance = walkingToBusStop['distance'] + 
+          final totalDistance = drivingToBusStop['distance'] + 
                               busJourney['distance'] + 
                               walkingToDestination['distance'];
-          final totalDuration = walkingToBusStop['duration'] + 
+          final totalDuration = drivingToBusStop['duration'] + 
                                busJourney['duration'] + 
                                walkingToDestination['duration'];
           
           // Validate distance sources
           print('📍 RouteDetails: Distance source validation:');
-          print('   Walking to bus stop: ${walkingToBusStop['source']} (${walkingToBusStop['distance']}m)');
+          print('   Driving to bus stop: ${drivingToBusStop['source']} (${drivingToBusStop['distance']}m)');
           print('   Bus journey: ${busJourney['source']} (${busJourney['distance']}m)');
           print('   Walking to destination: ${walkingToDestination['source']} (${walkingToDestination['distance']}m)');
           
@@ -294,7 +294,7 @@ void didChangeDependencies() {
           }
           
           print('📍 RouteDetails: Total journey calculation:');
-          print('   Walking to bus stop: ${(walkingToBusStop['distance'] / 1000).toStringAsFixed(2)}km');
+          print('   Driving to bus stop: ${(drivingToBusStop['distance'] / 1000).toStringAsFixed(2)}km');
           print('   Bus journey: ${(busJourney['distance'] / 1000).toStringAsFixed(2)}km');
           print('   Walking from bus stop: ${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km');
           print('   Total distance: ${(totalDistance / 1000).toStringAsFixed(2)}km');
@@ -759,11 +759,11 @@ void didChangeDependencies() {
               children: [
                 Expanded(
                 child: _buildJourneyMetric(
-                    icon: Icons.directions_walk,
-                    title: 'Walking',
+                    icon: Icons.swap_horiz,
+                    title: 'Transfers',
                   value: _currentJourney != null 
-                      ? '${_calculateTotalWalkingDistance()} km'
-                      : '0.0 km',
+                      ? _currentJourney!.requiresTransfer ? '1' : '0'
+                      : '0',
                   color: const Color(0xFF2196F3),
                   ),
                 ),
@@ -902,16 +902,6 @@ void didChangeDependencies() {
                   color: Colors.blue.shade600,
                 ),
               ),
-              Expanded(
-                child: _buildJourneyMetric(
-                  icon: Icons.motorcycle,
-                  title: 'Bykea Time',
-                  value: _currentJourney != null 
-                      ? '${_calculateBykeaTime()} min'
-                      : '0 min',
-                  color: Colors.blue.shade600,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -945,7 +935,7 @@ void didChangeDependencies() {
                   ],
                 ),
                 const SizedBox(height: 8),
-                _buildTransportSuggestions(_currentJourney?.walkingDistanceToStart ?? 0, 'start'),
+                _buildTransportSuggestions(_getDrivingDistanceToBusStopValue(), 'start'),
               ],
             ),
           ),
@@ -1472,13 +1462,8 @@ void didChangeDependencies() {
     if (_currentJourney == null) return 0;
     
     // Calculate driving distances for each segment
-    final drivingDistanceToBusStop = _currentJourney!.walkingDistanceToStart * 1.4; // Road network factor
-    final drivingDistanceBetweenStops = DistanceCalculator.calculateDistance(
-      _currentJourney!.startStop.lat,
-      _currentJourney!.startStop.lng,
-      _currentJourney!.endStop.lat,
-      _currentJourney!.endStop.lng,
-    ) * 1.4; // Road network factor
+    final drivingDistanceToBusStop = _getDrivingDistanceToBusStopValue(); // Use actual driving distance
+    final drivingDistanceBetweenStops = _getDrivingDistanceForBusJourneyValue(); // Use actual driving distance
     final walkingDistanceFromBusStop = _currentJourney!.walkingDistanceFromEnd;
     
     return drivingDistanceToBusStop + drivingDistanceBetweenStops + walkingDistanceFromBusStop;
@@ -1487,8 +1472,8 @@ void didChangeDependencies() {
   int _calculateBykeaTime() {
     if (_currentJourney == null) return 0;
     
-    final totalDistance = _currentJourney!.walkingDistanceToStart + 
-                         _currentJourney!.busDistance + 
+    final totalDistance = _getDrivingDistanceToBusStopValue() + // Use driving distance
+                         _getDrivingDistanceForBusJourneyValue() + // Use driving distance for bus journey
                          _currentJourney!.walkingDistanceFromEnd;
     
     return DistanceCalculator.calculateJourneyTimeWithBykea(totalDistance);
@@ -1838,33 +1823,101 @@ void didChangeDependencies() {
     }
   }
 
-  /// Get driving distance to bus stop (with road network adjustment)
+  /// Get driving distance to bus stop (using actual driving distance from API)
   String _getDrivingDistanceToBusStop() {
     if (_currentJourney == null) return '0.0';
     
-    // Use road network adjustment for driving distance
+    // Debug logging to see what data is available
+    print('🔍 RouteDetails: _getDrivingDistanceToBusStop debug:');
+    print('   journeyDetails available: ${journeyDetails != null}');
+    if (journeyDetails != null) {
+      print('   drivingToBusStop available: ${journeyDetails!['drivingToBusStop'] != null}');
+      if (journeyDetails!['drivingToBusStop'] != null) {
+        final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>; 
+        print('   Available keys: ${drivingData.keys.toList()}');
+        print('   distance: ${drivingData['distance']}');
+        print('   source: ${drivingData['source']}');
+      }
+    }
+    
+    // Try to get the actual driving distance from the journey details
+    if (journeyDetails != null && journeyDetails!['drivingToBusStop'] != null) {
+      final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>;
+      if (drivingData.containsKey('distance')) {
+        final drivingDistance = drivingData['distance'] as double;
+        final distanceKm = (drivingDistance / 1000).toStringAsFixed(1);
+        print('   ✅ Using API driving distance: ${distanceKm} km');
+        return distanceKm;
+      }
+    }
+    
+    // Fallback to road network adjustment if API data not available
     final straightLineDistance = _currentJourney!.walkingDistanceToStart;
     final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    final fallbackDistance = (drivingDistance / 1000).toStringAsFixed(1);
     
-    return (drivingDistance / 1000).toStringAsFixed(1);
+    print('   ⚠️ Using fallback calculation: ${fallbackDistance} km');
+    print('   Fallback based on: ${(straightLineDistance / 1000).toStringAsFixed(2)}km straight-line → ${(drivingDistance / 1000).toStringAsFixed(2)}km driving');
+    
+    return fallbackDistance;
   }
 
-  /// Get driving time to bus stop
+  /// Get driving time to bus stop (using actual driving time from API)
   int _getDrivingTimeToBusStop() {
     if (_currentJourney == null) return 0;
     
-    // Use road network adjustment for driving distance
+    // Debug logging to see what data is available
+    print('🔍 RouteDetails: _getDrivingTimeToBusStop debug:');
+    print('   journeyDetails available: ${journeyDetails != null}');
+    if (journeyDetails != null) {
+      print('   drivingToBusStop available: ${journeyDetails!['drivingToBusStop'] != null}');
+      if (journeyDetails!['drivingToBusStop'] != null) {
+        final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>;
+        print('   Available keys: ${drivingData.keys.toList()}');
+        print('   durationMinutes: ${drivingData['durationMinutes']}');
+        print('   duration: ${drivingData['duration']}');
+        print('   source: ${drivingData['source']}');
+      }
+    }
+    
+    // Try to get the actual driving time from the journey details
+    if (journeyDetails != null && journeyDetails!['drivingToBusStop'] != null) {
+      final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>;
+      if (drivingData.containsKey('durationMinutes')) {
+        final drivingDuration = drivingData['durationMinutes'] as int;
+        print('   ✅ Using API driving time: ${drivingDuration} minutes');
+        return drivingDuration;
+      } else if (drivingData.containsKey('duration')) {
+        // Convert duration from seconds to minutes
+        final drivingDurationSeconds = drivingData['duration'] as double;
+        final drivingDurationMinutes = (drivingDurationSeconds / 60).round();
+        print('   ✅ Using API driving time (converted): ${drivingDurationMinutes} minutes');
+        return drivingDurationMinutes;
+      }
+    }
+    
+    // Fallback to calculated time if API data not available
     final straightLineDistance = _currentJourney!.walkingDistanceToStart;
     final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    final fallbackTime = DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
     
-    return DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
+    print('   ⚠️ Using fallback calculation: ${fallbackTime} minutes');
+    print('   Fallback based on: ${(straightLineDistance / 1000).toStringAsFixed(2)}km straight-line → ${(drivingDistance / 1000).toStringAsFixed(2)}km driving');
+    
+    return fallbackTime;
   }
 
-  /// Get driving distance for bus journey (from bus stop to destination)
+  /// Get driving distance for bus journey (using actual driving distance from API)
   String _getDrivingDistanceForBusJourney() {
     if (_currentJourney == null) return '0.0';
     
-    // Calculate distance from boarding bus stop to destination bus stop
+    // Try to get the actual driving distance from the journey details
+    if (journeyDetails != null && journeyDetails!['busJourney'] != null) {
+      final drivingDistance = journeyDetails!['busJourney']['distance'] as double;
+      return (drivingDistance / 1000).toStringAsFixed(1);
+    }
+    
+    // Fallback to road network adjustment if API data not available
     final straightLineDistance = DistanceCalculator.calculateDistance(
       _currentJourney!.startStop.lat,
       _currentJourney!.startStop.lng,
@@ -1878,11 +1931,17 @@ void didChangeDependencies() {
     return (drivingDistance / 1000).toStringAsFixed(1);
   }
 
-  /// Get driving time for bus journey (from bus stop to destination)
+  /// Get driving time for bus journey (using actual driving time from API)
   int _getDrivingTimeForBusJourney() {
     if (_currentJourney == null) return 0;
     
-    // Calculate distance from boarding bus stop to destination bus stop
+    // Try to get the actual driving time from the journey details
+    if (journeyDetails != null && journeyDetails!['busJourney'] != null) {
+      final drivingDuration = journeyDetails!['busJourney']['durationMinutes'] as int;
+      return drivingDuration;
+    }
+    
+    // Fallback to calculated time if API data not available
     final straightLineDistance = DistanceCalculator.calculateDistance(
       _currentJourney!.startStop.lat,
       _currentJourney!.startStop.lng,
@@ -1923,7 +1982,24 @@ void didChangeDependencies() {
     );
   }
 
-
+  /// Get driving route information from user to bus stop (changed from walking)
+  Future<Map<String, dynamic>> _getDrivingRouteToBusStop({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    // Validate and fix coordinate precision
+    final validatedCoords = _validateAndFixCoordinates(startLat, startLng, endLat, endLng);
+    
+    return await _getMapboxRouteInfo(
+      startLat: validatedCoords['startLat']!,
+      startLng: validatedCoords['startLng']!,
+      endLat: validatedCoords['endLat']!,
+      endLng: validatedCoords['endLng']!,
+      routeType: MapboxRouteType.driving, // Driving profile for road network distance
+    );
+  }
 
   Widget _buildActionButtons() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1992,6 +2068,29 @@ void didChangeDependencies() {
           
           // Debug Distance Test Button (only in debug mode)
           if (kDebugMode) ...[
+            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton.icon(
+                onPressed: () => _testRouteFindingImprovements(),
+                icon: const Icon(Icons.bug_report, color: Colors.white),
+                label: Text(
+                  'Test Route Finding',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -2009,12 +2108,15 @@ void didChangeDependencies() {
       return;
     }
     
-    // Navigate to bus route details screen
+    // Navigate to bus route details screen with journey information
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BusRouteDetailsScreen(
           routeName: _currentJourney!.routes.first.name,
+          startStop: _currentJourney!.startStop,
+          endStop: _currentJourney!.endStop,
+          journeyDetails: journeyDetails,
         ),
       ),
     );
@@ -2229,5 +2331,66 @@ void didChangeDependencies() {
       'bykeaFare': bykeaFare,
       'rickshawFare': rickshawFare,
     };
+  }
+
+  void _testRouteFindingImprovements() async {
+    try {
+      final routeFinder = context.read<RouteFinder>();
+      await routeFinder.testRouteFindingImprovements();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Route finding test completed. Check console for details.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Test failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Get driving distance to bus stop in meters (for transport suggestions)
+  double _getDrivingDistanceToBusStopValue() {
+    if (_currentJourney == null) return 0.0;
+    
+    // Try to get the actual driving distance from the journey details
+    if (journeyDetails != null && journeyDetails!['drivingToBusStop'] != null) {
+      final drivingDistance = journeyDetails!['drivingToBusStop']['distance'] as double;
+      return drivingDistance;
+    }
+    
+    // Fallback to road network adjustment if API data not available
+    final straightLineDistance = _currentJourney!.walkingDistanceToStart;
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return drivingDistance;
+  }
+
+  double _getDrivingDistanceForBusJourneyValue() {
+    if (_currentJourney == null) return 0.0;
+    
+    // Try to get the actual driving distance from the journey details
+    if (journeyDetails != null && journeyDetails!['busJourney'] != null) {
+      final drivingDistance = journeyDetails!['busJourney']['distance'] as double;
+      return drivingDistance;
+    }
+    
+    // Fallback to road network adjustment if API data not available
+    final straightLineDistance = DistanceCalculator.calculateDistance(
+      _currentJourney!.startStop.lat,
+      _currentJourney!.startStop.lng,
+      _currentJourney!.endStop.lat,
+      _currentJourney!.endStop.lng,
+    );
+    
+    // Apply road network adjustment for driving
+    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
+    
+    return drivingDistance;
   }
 } 

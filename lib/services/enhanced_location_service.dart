@@ -297,6 +297,30 @@ class EnhancedLocationService extends ChangeNotifier {
     };
   }
   
+  /// Set a custom location manually
+  void setCustomLocation(double latitude, double longitude) {
+    _currentPosition = Position(
+      latitude: latitude,
+      longitude: longitude,
+      timestamp: DateTime.now(),
+      accuracy: 0.0,
+      altitude: 0.0,
+      heading: 0.0,
+      speed: 0.0,
+      speedAccuracy: 0.0,
+      altitudeAccuracy: 0.0,
+      headingAccuracy: 0.0,
+    );
+    
+    _error = null;
+    _isLoading = false;
+    
+    // Resolve address for the custom location
+    _resolveAddress();
+    
+    notifyListeners();
+  }
+
   /// Print detailed location status to console for debugging
   void printLocationStatus() {
     final status = getLocationStatus();
