@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 import '../services/enhanced_location_service.dart';
-import '../services/transport_preference_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
@@ -14,27 +13,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _selectedTransportPreference = 'Bykea'; // Default preference
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTransportPreference();
-  }
-
-  Future<void> _loadTransportPreference() async {
-    final preference = await TransportPreferenceService.getTransportPreference();
-    setState(() {
-      _selectedTransportPreference = preference;
-    });
-  }
-
-  Future<void> _saveTransportPreference(String preference) async {
-    await TransportPreferenceService.setTransportPreference(preference);
-    setState(() {
-      _selectedTransportPreference = preference;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Dark Mode Section
           Card(
+            color: Colors.white,
             child: Column(
               children: [
                 ListTile(
@@ -92,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           
           // Location Services Section
           Card(
+            color: Colors.white,
             child: Column(
               children: [
                 ListTile(
@@ -117,38 +97,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           
-          const SizedBox(height: 16),
-          
-          // Transport Preference Section
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.directions_car, color: Colors.orange),
-                  title: const Text('Transport Preference'),
-                  subtitle: Text('Preferred mode: $_selectedTransportPreference'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    _showTransportPreferenceDialog();
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.info_outline, color: Colors.grey),
-                  title: const Text('Preference Info'),
-                  subtitle: const Text('Used for journey suggestions'),
-                  onTap: () {
-                    _showPreferenceInfo();
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
+
           
           // About Section
           Card(
+            color: Colors.white,
             child: Column(
               children: [
                 ListTile(
@@ -242,94 +195,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showTransportPreferenceDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Transport Preference'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Choose your preferred transport mode for short distances:'),
-            const SizedBox(height: 16),
-            RadioListTile<String>(
-              title: const Text('Bykea'),
-              subtitle: const Text('Fast and affordable'),
-              value: 'Bykea',
-              groupValue: _selectedTransportPreference,
-              onChanged: (value) {
-                setState(() {
-                  _selectedTransportPreference = value!;
-                });
-                _saveTransportPreference(value!);
-                Navigator.of(context).pop();
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Rickshaw'),
-              subtitle: const Text('Good for short distances'),
-              value: 'Rickshaw',
-              groupValue: _selectedTransportPreference,
-              onChanged: (value) {
-                setState(() {
-                  _selectedTransportPreference = value!;
-                });
-                _saveTransportPreference(value!);
-                Navigator.of(context).pop();
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Walk'),
-              subtitle: const Text('Free and healthy'),
-              value: 'Walk',
-              groupValue: _selectedTransportPreference,
-              onChanged: (value) {
-                setState(() {
-                  _selectedTransportPreference = value!;
-                });
-                _saveTransportPreference(value!);
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showPreferenceInfo() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Transport Preference Info'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('This preference is used to suggest the best transport mode for:'),
-            SizedBox(height: 8),
-            Text('• Reaching bus stops from your location'),
-            Text('• Getting to your destination from bus stops'),
-            Text('• Calculating journey times and costs'),
-            SizedBox(height: 16),
-            Text('You can change this preference anytime in settings.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+
+
 
   void _showAboutDialog() {
     showAboutDialog(
