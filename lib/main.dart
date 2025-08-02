@@ -15,7 +15,7 @@ import 'services/route_finder.dart';
 import 'services/theme_service.dart';
 import 'services/json_places_service.dart';
 import 'services/mapbox_service.dart';
-import 'services/mapbox_directions_service.dart';
+import 'services/mapbox_service.dart';
 import 'services/recent_searches_service.dart';
 import 'services/secure_token_service.dart';
 import 'services/transport_preference_service.dart';
@@ -31,6 +31,18 @@ void main() async {
     print('✅ Main: JSON places service initialized successfully');
   } catch (e) {
     print('❌ Main: Error initializing JSON places service: $e');
+  }
+  
+  // Pre-initialize Mapbox service to avoid first-time failures
+  try {
+    final mapboxInitialized = await MapboxService.initialize();
+    if (mapboxInitialized) {
+      print('✅ Main: Mapbox service pre-initialized successfully');
+    } else {
+      print('⚠️ Main: Mapbox service pre-initialization failed, but app will continue');
+    }
+  } catch (e) {
+    print('❌ Main: Error pre-initializing Mapbox service: $e');
   }
   
   // Set system UI mode for the entire app

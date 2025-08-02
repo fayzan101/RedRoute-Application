@@ -30,42 +30,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Column(
+          children: [
+            Text('RedRoute'),
+            Text(
+              'Karachi Bus Navigation',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        centerTitle: true,
+      ),
       body: Column(
         children: [
-          // Header with bus icon and RedRoute title
-          Container(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF181111),
-                  ),
-                  child: const Icon(
-                    Icons.directions_bus,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'RedRoute',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF181111),
-                      letterSpacing: -0.015,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48), // Balance the layout
-              ],
-            ),
-          ),
-          
           // Main content
           Expanded(
             child: Padding(
@@ -129,6 +107,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: () {
+                        // Set bottom navigation bar to white before navigating
+                        SystemChrome.setSystemUIOverlayStyle(
+                          const SystemUiOverlayStyle(
+                            statusBarColor: Colors.transparent,
+                            statusBarIconBrightness: Brightness.dark,
+                            systemNavigationBarColor: Colors.white,
+                            systemNavigationBarIconBrightness: Brightness.dark,
+                          ),
+                        );
                         Navigator.of(context).pushReplacementNamed('/home');
                       },
                       style: ElevatedButton.styleFrom(

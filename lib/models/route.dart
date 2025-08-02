@@ -36,6 +36,10 @@ class Journey {
   final double walkingDistanceToStart;
   final double walkingDistanceFromEnd;
   final double busDistance;
+  // Add time fields for local calculations
+  final int walkingTimeToStart; // in minutes
+  final int walkingTimeFromEnd; // in minutes
+  final int busTime; // in minutes
 
   Journey({
     required this.startStop,
@@ -47,27 +51,33 @@ class Journey {
     required this.walkingDistanceToStart,
     required this.walkingDistanceFromEnd,
     required this.busDistance,
+    required this.walkingTimeToStart,
+    required this.walkingTimeFromEnd,
+    required this.busTime,
   });
 
   bool get requiresTransfer => transferStop != null;
 
+  // Calculate total journey time
+  int get totalTime => walkingTimeToStart + busTime + walkingTimeFromEnd + 5; // +5 for bus waiting time
+
   String get transportSuggestionToStart {
     if (walkingDistanceToStart < 500) {
-      return 'Walk (${(walkingDistanceToStart).round()}m)';
+      return 'Walk (${(walkingDistanceToStart).round()}m) - ${walkingTimeToStart}min';
     } else if (walkingDistanceToStart < 2000) {
-      return 'Rickshaw (${(walkingDistanceToStart / 1000).toStringAsFixed(1)}km)';
+      return 'Rickshaw (${(walkingDistanceToStart / 1000).toStringAsFixed(1)}km) - ${walkingTimeToStart}min';
     } else {
-      return 'Bykea/Careem (${(walkingDistanceToStart / 1000).toStringAsFixed(1)}km)';
+      return 'Bykea/Careem (${(walkingDistanceToStart / 1000).toStringAsFixed(1)}km) - ${walkingTimeToStart}min';
     }
   }
 
   String get transportSuggestionFromEnd {
     if (walkingDistanceFromEnd < 500) {
-      return 'Walk (${(walkingDistanceFromEnd).round()}m)';
+      return 'Walk (${(walkingDistanceFromEnd).round()}m) - ${walkingTimeFromEnd}min';
     } else if (walkingDistanceFromEnd < 2000) {
-      return 'Rickshaw (${(walkingDistanceFromEnd / 1000).toStringAsFixed(1)}km)';
+      return 'Rickshaw (${(walkingDistanceFromEnd / 1000).toStringAsFixed(1)}km) - ${walkingTimeFromEnd}min';
     } else {
-      return 'Bykea/Careem (${(walkingDistanceFromEnd / 1000).toStringAsFixed(1)}km)';
+      return 'Bykea/Careem (${(walkingDistanceFromEnd / 1000).toStringAsFixed(1)}km) - ${walkingTimeFromEnd}min';
     }
   }
 }

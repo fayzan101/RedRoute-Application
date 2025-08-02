@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/transport_preference_service.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback? onBackPressed;
+  
+  const SettingsScreen({super.key, this.onBackPressed});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -18,26 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Set edge-to-edge mode to prevent navigation bar interference
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _loadTransportPreference();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent, // Or your custom color
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: isDark ? Colors.black : Colors.white,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
-      ),
-    );
   }
 
   Future<void> _loadTransportPreference() async {
@@ -60,7 +42,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (widget.onBackPressed != null) {
+              widget.onBackPressed!();
+            } else {
+              // Fallback: navigate back
+              Navigator.of(context).pop();
+            }
+          },
         ),
         title: const Text('Settings'),
         centerTitle: true,

@@ -6,7 +6,6 @@ import '../services/enhanced_location_service.dart';
 import '../services/mapbox_service.dart';
 import '../services/data_service.dart';
 import '../services/theme_service.dart';
-import '../services/karachi_places_service.dart';
 import '../services/route_finder.dart';
 import '../widgets/karachi_location_search.dart';
 import 'map_screen.dart';
@@ -24,17 +23,29 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-
-  final List<Widget> _screens = [
-    const HomeTab(),
-    const MapTab(),
-    const RoutesTab(),
-    const SettingsTab(),
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize screens with callbacks
+    _screens = [
+      const HomeTab(),
+      MapTab(onBackPressed: () {
+        print('Map back button pressed - switching to home tab');
+        setState(() => _currentIndex = 0);
+      }),
+      RoutesTab(onBackPressed: () {
+        print('Routes back button pressed - switching to home tab');
+        setState(() => _currentIndex = 0);
+      }),
+      SettingsTab(onBackPressed: () {
+        print('Settings back button pressed - switching to home tab');
+        setState(() => _currentIndex = 0);
+      }),
+    ];
+    
     // Set edge-to-edge mode to prevent navigation bar interference
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _initializeServices();
@@ -58,13 +69,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeServices() async {
-    final locationService = context.read<EnhancedLocationService>();
     final dataService = context.read<DataService>();
     
-    // Initialize location service
-    await locationService.initializeLocation();
-    
-    // Load BRT data
+    // Load BRT data only - location will be fetched when user requests it
     try {
       await dataService.loadBRTData();
     } catch (e) {
@@ -91,8 +98,9 @@ class _HomeScreenState extends State<HomeScreen> {
             _currentIndex = index;
           });
         },
+        backgroundColor: Colors.white,
         selectedItemColor: const Color(0xFFE53E3E),
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Colors.black,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -138,7 +146,7 @@ class HomeTab extends StatelessWidget {
       ),
       body: Consumer<EnhancedLocationService>(
         builder: (context, locationService, child) {
-          if (locationService.isLoading) {
+          if (locationService.hasRequestedLocation && locationService.isLoading) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -151,7 +159,7 @@ class HomeTab extends StatelessWidget {
             );
           }
 
-          if (locationService.error != null) {
+          if (locationService.hasRequestedLocation && locationService.error != null) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -352,7 +360,7 @@ class HomeTab extends StatelessWidget {
                       ),
                     );
                   },
-                  hintText: 'Search for your location',
+                  hintText: 'From',
                   showPopularPlaces: false,
                   showSearchIcon: true,
                 ),
@@ -368,7 +376,8 @@ class HomeTab extends StatelessWidget {
                         onPressed: locationService.isLoading 
                           ? null 
                           : () async {
-                              await locationService.getCurrentLocation();
+                              // Initialize location service when user clicks the button
+                              await locationService.initializeLocation();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Using current location'),
@@ -420,136 +429,225 @@ class HomeTab extends StatelessWidget {
                 _navigateToRoute(context, place);
               },
               onRouteRequested: (place) => _navigateToRoute(context, place),
-              hintText: 'Search places in Karachi',
-              showPopularPlaces: true,
+              hintText: 'Destination',
+              showPopularPlaces: false,
               showSearchIcon: true,
             ),
             
-
+            const SizedBox(height: 24),
             
-            // Welcome Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // Popular Places Section
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Popular Places',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.2,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Current Location',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const Spacer(),
-                        Consumer<EnhancedLocationService>(
-                          builder: (context, locationService, child) {
-                            return IconButton(
-                              onPressed: locationService.isLoading 
-                                ? null 
-                                : () async {
-                                    await locationService.getCurrentLocation();
-                                  },
-                              icon: locationService.isLoading
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.refresh, size: 20),
-                              tooltip: 'Refresh location',
-                            );
-                          },
-                        ),
-                      ],
+                    _buildPopularPlaceCard(
+                      context,
+                      'Dolmen Mall',
+                      'Clifton',
+                      Icons.shopping_bag,
+                      Colors.blue,
+                      () => _navigateToRoute(context, UnifiedPlace(
+                        name: 'Dolmen Mall',
+                        displayName: 'Dolmen Mall, Clifton',
+                        subtitle: 'Clifton',
+                        lat: 24.8136,
+                        lon: 67.0222,
+                        type: 'shopping',
+                      )),
                     ),
-                    const SizedBox(height: 8),
-                    Consumer<EnhancedLocationService>(
-                      builder: (context, locationService, child) {
-                        final position = locationService.currentPosition;
-                        if (position != null) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Lat: ${position.latitude.toStringAsFixed(4)}, '
-                                'Lng: ${position.longitude.toStringAsFixed(4)}',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              FutureBuilder<String?>(
-                                future: MapboxService.getAddressFromCoordinates(
-                                  position.latitude,
-                                  position.longitude,
-                                ),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return Text(
-                                      'Getting address...',
-                                      style: TextStyle(
-                                        color: Theme.of(context).brightness == Brightness.dark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey,
-                                        fontSize: 12
-                                      ),
-                                    );
-                                  }
-                                  if (snapshot.hasData && snapshot.data != null) {
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          snapshot.data!,
-                                          style: TextStyle(
-                                            color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey.shade400
-                                              : Colors.grey,
-                                            fontSize: 12
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Accuracy: ${position.accuracy.toStringAsFixed(1)}m',
-                                          style: TextStyle(
-                                            color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.blue.shade300
-                                              : Colors.blue,
-                                            fontSize: 10
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                  return Text(
-                                    'Address not available',
-                                    style: TextStyle(
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey,
-                                      fontSize: 12
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          );
-                        }
-                        return Text(
-                          'Location not available',
-                          style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.grey.shade400
-                              : Colors.grey,
-                          ),
-                        );
-                      },
+                    _buildPopularPlaceCard(
+                      context,
+                      'Port Grand',
+                      'Karachi Port',
+                      Icons.restaurant,
+                      Colors.orange,
+                      () => _navigateToRoute(context, UnifiedPlace(
+                        name: 'Port Grand',
+                        displayName: 'Port Grand',
+                        subtitle: 'Karachi Port',
+                        lat: 24.8500,
+                        lon: 66.9900,
+                        type: 'restaurant',
+                      )),
+                    ),
+                    _buildPopularPlaceCard(
+                      context,
+                      'Beach View',
+                      'Clifton Beach',
+                      Icons.beach_access,
+                      Colors.teal,
+                      () => _navigateToRoute(context, UnifiedPlace(
+                        name: 'Clifton Beach',
+                        displayName: 'Clifton Beach',
+                        subtitle: 'Clifton Beach',
+                        lat: 24.8000,
+                        lon: 67.0000,
+                        type: 'beach',
+                      )),
+                    ),
+                    _buildPopularPlaceCard(
+                      context,
+                      'Airport',
+                      'Jinnah International',
+                      Icons.flight,
+                      Colors.purple,
+                      () => _navigateToRoute(context, UnifiedPlace(
+                        name: 'Jinnah International Airport',
+                        displayName: 'Jinnah International Airport',
+                        subtitle: 'Jinnah International',
+                        lat: 24.9065,
+                        lon: 67.1606,
+                        type: 'airport',
+                      )),
+                    ),
+                    _buildPopularPlaceCard(
+                      context,
+                      'Station',
+                      'Karachi Cantt',
+                      Icons.train,
+                      Colors.green,
+                      () => _navigateToRoute(context, UnifiedPlace(
+                        name: 'Karachi Cantt Station',
+                        displayName: 'Karachi Cantt Station',
+                        subtitle: 'Karachi Cantt',
+                        lat: 24.8600,
+                        lon: 67.0500,
+                        type: 'station',
+                      )),
                     ),
                   ],
                 ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Current Location Section
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade800 
+                  : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade700
+                    : Colors.grey.shade200,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.location_on,
+                          color: Theme.of(context).primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Current Location',
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Consumer<EnhancedLocationService>(
+                              builder: (context, locationService, child) {
+                                final position = locationService.currentPosition;
+                                if (position != null) {
+                                  return FutureBuilder<String?>(
+                                    future: MapboxService.getAddressFromCoordinates(
+                                      position.latitude,
+                                      position.longitude,
+                                    ),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasData && snapshot.data != null) {
+                                        return Text(
+                                          snapshot.data!,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      }
+                                      return Text(
+                                        'Location available',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
+                                        ),
+                                      );
+                                    },
+                                  );
+                                }
+                                return Text(
+                                  'Tap to get location',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      Consumer<EnhancedLocationService>(
+                        builder: (context, locationService, child) {
+                          return IconButton(
+                            onPressed: locationService.isLoading 
+                              ? null 
+                              : () async {
+                                  await locationService.initializeLocation();
+                                },
+                            icon: locationService.isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.my_location, size: 20),
+                            tooltip: 'Get current location',
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             
@@ -607,21 +705,101 @@ class HomeTab extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildPopularPlaceCard(
+    BuildContext context,
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade800 : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark 
+                  ? Colors.black.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // Map Tab
 class MapTab extends StatelessWidget {
-  const MapTab({super.key});
+  final VoidCallback? onBackPressed;
+  
+  const MapTab({super.key, this.onBackPressed});
 
   @override
   Widget build(BuildContext context) {
-    return const MapScreen();
+    return Scaffold(
+      body: MapScreen(onBackPressed: onBackPressed),
+    );
   }
 }
 
 // Routes Tab
 class RoutesTab extends StatelessWidget {
-  const RoutesTab({super.key});
+  final VoidCallback? onBackPressed;
+  
+  const RoutesTab({super.key, this.onBackPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -629,39 +807,40 @@ class RoutesTab extends StatelessWidget {
     
     return Scaffold(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (onBackPressed != null) {
+              onBackPressed!();
+            } else {
+              // Fallback: navigate back
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+        title: const Text('BRT Routes'),
+        centerTitle: true,
+        actions: [
+          Icon(
+            Icons.directions_bus,
+            color: const Color(0xFFE92929),
+            size: 28,
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Text(
-                    'BRT Routes',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF181111),
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.directions_bus,
-                    color: const Color(0xFFE92929),
-                    size: 28,
-                  ),
-                ],
-              ),
-            ),
             
             // Routes List
             Expanded(
               child: Consumer<DataService>(
                 builder: (context, dataService, child) {
-                  final routes = dataService.getAllRouteNames();
+                  final routes = dataService.getSortedRouteNames();
                   
-                  if (routes.isEmpty) {
+                                    if (routes.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -798,10 +977,12 @@ class RoutesTab extends StatelessWidget {
 
 // Settings Tab
 class SettingsTab extends StatelessWidget {
-  const SettingsTab({super.key});
+  final VoidCallback? onBackPressed;
+  
+  const SettingsTab({super.key, this.onBackPressed});
 
   @override
   Widget build(BuildContext context) {
-    return const SettingsScreen();
+    return SettingsScreen(onBackPressed: onBackPressed);
   }
 }

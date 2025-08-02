@@ -8,14 +8,17 @@ class EnhancedLocationService extends ChangeNotifier {
   String? _error;
   bool _permissionGranted = false;
   String? _currentAddress;
+  bool _hasRequestedLocation = false;
 
   Position? get currentPosition => _currentPosition;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get permissionGranted => _permissionGranted;
   String? get currentAddress => _currentAddress;
+  bool get hasRequestedLocation => _hasRequestedLocation;
 
   Future<void> initializeLocation() async {
+    _hasRequestedLocation = true;
     _setLoading(true);
     _error = null;
     
@@ -189,6 +192,13 @@ class EnhancedLocationService extends ChangeNotifier {
   }
 
   void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  void resetLocationRequest() {
+    _hasRequestedLocation = false;
+    _isLoading = false;
     _error = null;
     notifyListeners();
   }

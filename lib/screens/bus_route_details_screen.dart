@@ -26,42 +26,17 @@ class BusRouteDetailsScreen extends StatelessWidget {
     
     return Scaffold(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Bus Route Details'),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      child: Icon(
-                        Icons.arrow_back,
-                        color: isDark ? Colors.white : const Color(0xFF181111),
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Bus Route Details',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF181111),
-                        letterSpacing: -0.015,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
             
             // Scrollable Content
             Expanded(

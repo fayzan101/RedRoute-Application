@@ -4,7 +4,6 @@ import '../models/route.dart';
 import '../utils/distance_calculator.dart';
 import 'data_service.dart';
 import 'mapbox_service.dart';
-import 'mapbox_directions_service.dart';
 import 'secure_token_service.dart';
 
 /// RouteFinder - Enhanced route finding with critical fixes
@@ -81,8 +80,7 @@ class RouteFinder extends ChangeNotifier {
     }
     
     // Debug: Show user's current location context
-    print('📍 RouteFinder: User is at coordinates (${userLat.toStringAsFixed(6)}, ${userLng.toStringAsFixed(6)})');
-    print('🎯 RouteFinder: Destination is at coordinates (${destLat.toStringAsFixed(6)}, ${destLng.toStringAsFixed(6)})');
+
     
     // Calculate direct distance between user and destination
     final directDistance = DistanceCalculator.calculateDistance(userLat, userLng, destLat, destLng);
@@ -92,12 +90,7 @@ class RouteFinder extends ChangeNotifier {
     final testDistance = DistanceCalculator.calculateDistance(24.8607, 67.0011, 24.8571541, 67.2645918);
     print('🧪 RouteFinder: Test distance (Karachi center to Fast University): ${DistanceCalculator.formatDistance(testDistance)}');
     
-    // Check if user location seems reasonable (within Karachi bounds)
-    if (userLat < 24.7 || userLat > 25.2 || userLng < 66.8 || userLng > 67.5) {
-      print('⚠️ RouteFinder: WARNING - User location seems outside Karachi bounds!');
-      print('   Expected: lat 24.7-25.2, lng 66.8-67.5');
-      print('   Actual: lat $userLat, lng $userLng');
-    }
+    
     
     // Check if destination is at a bus stop (within 50 meters)
     final destinationStop = await _findExactBusStop(destLat, destLng, stops);
@@ -125,13 +118,7 @@ class RouteFinder extends ChangeNotifier {
           destinationStop: destinationStop,
         );
         
-        if (journey != null) {
-          print('✅ RouteFinder: Journey created successfully to exact destination stop');
-          print('   - Boarding: ${journey.startStop.name}');
-          print('   - Destination: ${journey.endStop.name} (EXACT STOP)');
-          print('   - Routes: ${journey.routes.map((r) => r.name).join(', ')}');
-          print('   - Total distance: ${DistanceCalculator.formatDistance(journey.totalDistance)}');
-        }
+        
         
         return journey;
       } else if (bestBoardingStop != null && bestBoardingStop.id == destinationStop.id) {
@@ -196,13 +183,7 @@ class RouteFinder extends ChangeNotifier {
       destinationStop: nearestToDestination,
     );
     
-    if (journey != null) {
-      print('✅ RouteFinder: Journey created successfully');
-      print('   - Boarding: ${journey.startStop.name}');
-      print('   - Destination: ${journey.endStop.name}');
-      print('   - Routes: ${journey.routes.map((r) => r.name).join(', ')}');
-      print('   - Total distance: ${DistanceCalculator.formatDistance(journey.totalDistance)}');
-    }
+    
     
     return journey;
   }
@@ -412,12 +393,7 @@ class RouteFinder extends ChangeNotifier {
   Future<Stop?> _findExactBusStop(double lat, double lng, List<Stop> stops) async {
     if (stops.isEmpty) return null;
     
-    print('🚀 RouteFinder: Using IMPROVED 2-level filtering for exact bus stop...');
-    print('📍 RouteFinder: User location: (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})');
-    print('🔧 RouteFinder: Haversine filter radius: ${HAVERSINE_FILTER_RADIUS}m, Exact threshold: ${EXACT_STOP_THRESHOLD}m');
-    
-    // STEP 1: Filter using Haversine Distance (Locally) - NO API CALLS
-    print('🔹 Step 1: Local Haversine filtering for exact stops...');
+ 
     final List<Map<String, dynamic>> candidateStops = [];
     
     for (final stop in stops) {
@@ -473,7 +449,7 @@ class RouteFinder extends ChangeNotifier {
       
       try {
         print('🗺️ RouteFinder: Getting Mapbox route for exact stop ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
-        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        final routeInfo = await MapboxService.getRouteInfo(
           startLat: lat,
           startLng: lng,
           endLat: stop.lat,
@@ -497,10 +473,11 @@ class RouteFinder extends ChangeNotifier {
         }
       } catch (e) {
         print('⚠️ RouteFinder: Mapbox error for ${stop.name}: $e, using fallback');
-        // Use fallback calculation
-        final drivingDistance = localDistance * 1.4;
+        // Use improved fallback calculation
+        final straightLineDistance = DistanceCalculator.calculateDistance(lat, lng, stop.lat, stop.lng);
+        final drivingDistance = straightLineDistance * 1.2;
         if (drivingDistance <= EXACT_STOP_THRESHOLD) {
-          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (fallback distance: ${DistanceCalculator.formatDistance(drivingDistance)})');
+          print('🎯 RouteFinder: Destination is at bus stop ${stop.name} (improved fallback distance: ${DistanceCalculator.formatDistance(drivingDistance)})');
           return stop;
         }
       }
@@ -514,7 +491,7 @@ class RouteFinder extends ChangeNotifier {
   Future<double> _getAccurateDistance(double lat1, double lng1, double lat2, double lng2) async {
     try {
       // Try to get road network distance from Mapbox
-      final routeInfo = await MapboxDirectionsService.getRouteInfo(
+      final routeInfo = await MapboxService.getRouteInfo(
         startLat: lat1,
         startLng: lng1,
         endLat: lat2,
@@ -527,13 +504,14 @@ class RouteFinder extends ChangeNotifier {
         return routeInfo.distance;
       }
     } catch (e) {
-      print('⚠️ RouteFinder: Mapbox distance calculation failed, using straight-line: $e');
+      print('⚠️ RouteFinder: Mapbox distance calculation failed, using improved fallback: $e');
     }
     
-    // Fallback to straight-line distance
+    // Improved fallback: use straight-line distance with road network factor
     final straightLineDistance = DistanceCalculator.calculateDistance(lat1, lng1, lat2, lng2);
-    print('📏 RouteFinder: Using straight-line distance: ${DistanceCalculator.formatDistance(straightLineDistance)}');
-    return straightLineDistance;
+    final improvedDistance = straightLineDistance * 1.2; // 20% buffer for road network
+    print('📏 RouteFinder: Using improved fallback distance: ${DistanceCalculator.formatDistance(improvedDistance)} (straight-line: ${DistanceCalculator.formatDistance(straightLineDistance)})');
+    return improvedDistance;
   }
 
   /// Special handling for Fast University searches
@@ -549,8 +527,6 @@ class RouteFinder extends ChangeNotifier {
         lat, lng, fastUniversityStop.lat, fastUniversityStop.lng
       );
       
-      print('🎓 RouteFinder: Found Fast University stop: ${fastUniversityStop.name}');
-      print('🎓 RouteFinder: Distance to Fast University: ${DistanceCalculator.formatDistance(distance)}');
       
       // If user is within 5km of Fast University, prioritize it
       if (distance <= 5000) {
@@ -566,9 +542,7 @@ class RouteFinder extends ChangeNotifier {
   Future<Stop?> _findNearestStop(double lat, double lng, List<Stop> stops) async {
     if (stops.isEmpty) return null;
     
-    print('🚀 RouteFinder: Using OPTIMIZED 2-level filtering strategy');
-    print('📍 RouteFinder: User location: (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})');
-    print('📊 RouteFinder: Total stops to evaluate: ${stops.length}');
+   
     
     // Debug: Check if this is for Fast University area
     final isFastUniversityArea = (lat >= 24.85 && lat <= 24.87 && lng >= 67.26 && lng <= 67.27);
@@ -594,14 +568,6 @@ class RouteFinder extends ChangeNotifier {
           print('🔍 RouteFinder: ${stop.name} - Local distance: ${DistanceCalculator.formatDistance(localDistance)} (${stop.lat.toStringAsFixed(6)}, ${stop.lng.toStringAsFixed(6)})');
         }
         
-        // Special debugging for Manzil stops
-        if (stop.name.toLowerCase().contains('manzil')) {
-          print('🔍 RouteFinder: MANZIL STOP FOUND - ${stop.name}');
-          print('   ID: ${stop.id}');
-          print('   Coordinates: (${stop.lat.toStringAsFixed(6)}, ${stop.lng.toStringAsFixed(6)})');
-          print('   Routes: ${stop.routes.join(', ')}');
-          print('   Local distance: ${DistanceCalculator.formatDistance(localDistance)}');
-        }
         
         // For Fast University area, prioritize stops that are actually closer
         if (isFastUniversityArea) {
@@ -668,7 +634,7 @@ class RouteFinder extends ChangeNotifier {
       
       try {
         print('🗺️ RouteFinder: Getting Mapbox route for ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
-        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        final routeInfo = await MapboxService.getRouteInfo(
           startLat: lat,
           startLng: lng,
           endLat: stop.lat,
@@ -709,9 +675,7 @@ class RouteFinder extends ChangeNotifier {
     }
     
     if (nearest != null) {
-      print('🎯 RouteFinder: FINAL SELECTION - ${nearest.name} (${DistanceCalculator.formatDistance(minDistance)})');
-      print('📍 RouteFinder: Selected stop coordinates: (${nearest.lat.toStringAsFixed(6)}, ${nearest.lng.toStringAsFixed(6)})');
-      print('📍 RouteFinder: Selected stop routes: ${nearest.routes.join(', ')}');
+
       
       // Validate the selection
       final localDistanceToSelected = DistanceCalculator.calculateDistance(lat, lng, nearest.lat, nearest.lng);
@@ -792,7 +756,7 @@ class RouteFinder extends ChangeNotifier {
       
       try {
         print('🗺️ RouteFinder: Getting Mapbox route for ${stop.name} (local: ${DistanceCalculator.formatDistance(localDistance)})...');
-        final routeInfo = await MapboxDirectionsService.getRouteInfo(
+        final routeInfo = await MapboxService.getRouteInfo(
           startLat: lat,
           startLng: lng,
           endLat: stop.lat,
@@ -805,9 +769,10 @@ class RouteFinder extends ChangeNotifier {
           drivingDistance = routeInfo.distance;
           print('✅ RouteFinder: ${stop.name} - Mapbox driving distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
         } else {
-          // Fallback to local distance if Mapbox fails
-          drivingDistance = localDistance * 1.4; // Apply road network factor
-          print('⚠️ RouteFinder: ${stop.name} - Mapbox failed, using adjusted local distance: ${DistanceCalculator.formatDistance(drivingDistance)}');
+          // Improved fallback distance calculation
+          final straightLineDistance = DistanceCalculator.calculateDistance(lat, lng, stop.lat, stop.lng);
+          drivingDistance = straightLineDistance * 1.2; // More accurate road network factor
+          print('⚠️ RouteFinder: ${stop.name} - Mapbox failed, using improved fallback: ${DistanceCalculator.formatDistance(drivingDistance)} (straight-line: ${DistanceCalculator.formatDistance(straightLineDistance)})');
         }
         
         stopDistances.add({
@@ -938,7 +903,7 @@ class RouteFinder extends ChangeNotifier {
       
       try {
         // API Call 1: User to boarding stop
-        final userToBoarding = await MapboxDirectionsService.getRouteInfo(
+        final userToBoarding = await MapboxService.getRouteInfo(
           startLat: userLat,
           startLng: userLng,
           endLat: stop.lat,
@@ -946,8 +911,8 @@ class RouteFinder extends ChangeNotifier {
           routeType: MapboxRouteType.driving,
         );
         
-        // API Call 2: Boarding stop to destination stop
-        final boardingToDestination = await MapboxDirectionsService.getRouteInfo(
+        // API Call 2: Boarding stop to destination
+        final boardingToDestination = await MapboxService.getRouteInfo(
           startLat: stop.lat,
           startLng: stop.lng,
           endLat: destinationStop.lat,
@@ -1023,11 +988,7 @@ class RouteFinder extends ChangeNotifier {
     evaluatedOptions.sort((a, b) => a['score'].compareTo(b['score']));
     final bestOption = evaluatedOptions.first;
     final bestStop = bestOption['stop'] as Stop;
-    
-    print('🎯 RouteFinder: Selected best boarding stop: ${bestStop.name}');
-    print('   Total journey distance: ${DistanceCalculator.formatDistance(bestOption['totalDistance'])}');
-    print('   User to boarding: ${DistanceCalculator.formatDistance(bestOption['userToBoardingDistance'])}');
-    print('   Boarding to destination: ${DistanceCalculator.formatDistance(bestOption['boardingToDestDistance'])}');
+  
     
     return bestStop;
   }
@@ -1052,7 +1013,7 @@ class RouteFinder extends ChangeNotifier {
       }
     }
     
-    print('🛣️ RouteFinder: Analyzing ${routeGroups.length} routes to destination');
+   
     
     // PRIORITY 1: Find routes that go directly to destination or very close to it
     final directRouteOptions = await _findDirectRouteOptions(
@@ -1257,38 +1218,14 @@ class RouteFinder extends ChangeNotifier {
         
         // Calculate distance from this stop to destination using Mapbox driving distance
         double distanceToDestination;
-        try {
-          final routeInfo = await MapboxDirectionsService.getRouteInfo(
-            startLat: stop.lat,
-            startLng: stop.lng,
-            endLat: destinationStop.lat,
-            endLng: destinationStop.lng,
-            routeType: MapboxRouteType.driving,
-          );
-          
-          if (routeInfo != null && routeInfo.distance > 0) {
-            distanceToDestination = routeInfo.distance;
-          } else {
-            // Fallback to local distance if Mapbox fails
-            distanceToDestination = DistanceCalculator.calculateDistance(
-          stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-            ) * 1.4; // Apply road network factor
-          }
-        } catch (e) {
-          // Fallback to local distance if Mapbox fails
-          distanceToDestination = DistanceCalculator.calculateDistance(
-            stop.lat, stop.lng, destinationStop.lat, destinationStop.lng
-          ) * 1.4; // Apply road network factor
-        }
-        
+              
         // Find the stop closest to user on this route
         if (distanceToUser < minDistanceToUser) {
           minDistanceToUser = distanceToUser;
           closestStopToUser = stop;
         }
         
-        print('      🚏 ${stop.name}: User distance ${DistanceCalculator.formatDistance(distanceToUser)}, '
-              'Destination distance ${DistanceCalculator.formatDistance(distanceToDestination)}');
+
         
         // Debug: Show coordinates for verification
         if (stop.name.toLowerCase().contains('quaidabad') || 
@@ -1393,6 +1330,10 @@ class RouteFinder extends ChangeNotifier {
       final walkingDistanceFromEnd = (walkingFromStop?['distance'] as num?)?.toDouble() ?? 
           DistanceCalculator.calculateDistance(destinationStop.lat, destinationStop.lng, destLat, destLng);
       
+      // Calculate times locally using Mapbox distances
+      final walkingTimeToStart = _calculateWalkingTimeFromDistance(walkingDistanceToStart);
+      final walkingTimeFromEnd = _calculateWalkingTimeFromDistance(walkingDistanceFromEnd);
+      
       // Calculate bus distance using road network if possible
       double busDistance;
       if (boardingStop.id != destinationStop.id) {
@@ -1416,25 +1357,14 @@ class RouteFinder extends ChangeNotifier {
         busDistance = 0.0; // Same stop, no bus journey
       }
       
-      print('📏 RouteFinder: Distance breakdown:');
-      print('   - Walking to boarding stop: ${DistanceCalculator.formatDistance(walkingDistanceToStart)}');
-      print('   - Bus journey: ${DistanceCalculator.formatDistance(busDistance)}');
-      print('   - Walking from destination stop: ${DistanceCalculator.formatDistance(walkingDistanceFromEnd)}');
-      print('   - Total: ${DistanceCalculator.formatDistance(walkingDistanceToStart + busDistance + walkingDistanceFromEnd)}');
+      // Calculate bus time locally using Mapbox distance
+      final busTime = _calculateBusTimeFromDistance(busDistance);
       
-      // Debug: Check if boarding and destination stops are the same
-      if (boardingStop.id == destinationStop.id) {
-        print('⚠️ RouteFinder: WARNING - Boarding and destination stops are the same!');
-        print('   Boarding stop: ${boardingStop.name} (${boardingStop.id})');
-        print('   Destination stop: ${destinationStop.name} (${destinationStop.id})');
-        print('   Bus distance: ${DistanceCalculator.formatDistance(busDistance)}');
-      }
+
       
-      // Check if destination is at the exact bus stop
-      if (walkingDistanceFromEnd < 50) {
-        print('🎯 RouteFinder: Destination is at the exact bus stop: ${destinationStop.name}');
-        print('   No additional walking needed from bus stop to destination');
-      }
+      
+      
+      
       
       // Find common routes
       final commonRoutes = boardingStop.routes
@@ -1475,6 +1405,9 @@ class RouteFinder extends ChangeNotifier {
         walkingDistanceToStart: walkingDistanceToStart,
         walkingDistanceFromEnd: walkingDistanceFromEnd,
         busDistance: busDistance,
+        walkingTimeToStart: walkingTimeToStart,
+        walkingTimeFromEnd: walkingTimeFromEnd,
+        busTime: busTime,
       );
     } catch (e) {
       print('Error creating enhanced journey: $e');
@@ -1521,19 +1454,10 @@ class RouteFinder extends ChangeNotifier {
           destinationStop.lng,
         ) : 0.0;
     
-    print('📏 RouteFinder: Basic journey distance breakdown:');
-    print('   - Walking to boarding stop: ${DistanceCalculator.formatDistance(walkingDistanceToStart)}');
-    print('   - Bus journey: ${DistanceCalculator.formatDistance(busDistance)}');
-    print('   - Walking from destination stop: ${DistanceCalculator.formatDistance(walkingDistanceFromEnd)}');
-    print('   - Total: ${DistanceCalculator.formatDistance(walkingDistanceToStart + busDistance + walkingDistanceFromEnd)}');
-    
-    // Debug: Check if boarding and destination stops are the same
-    if (boardingStop.id == destinationStop.id) {
-      print('⚠️ RouteFinder: WARNING - Boarding and destination stops are the same! (Basic journey)');
-      print('   Boarding stop: ${boardingStop.name} (${boardingStop.id})');
-      print('   Destination stop: ${destinationStop.name} (${destinationStop.id})');
-      print('   Bus distance: ${DistanceCalculator.formatDistance(busDistance)}');
-    }
+    // Calculate times locally using distances
+    final walkingTimeToStart = _calculateWalkingTimeFromDistance(walkingDistanceToStart);
+    final walkingTimeFromEnd = _calculateWalkingTimeFromDistance(walkingDistanceFromEnd);
+    final busTime = _calculateBusTimeFromDistance(busDistance);
     
     // Find common routes
     final commonRoutes = boardingStop.routes
@@ -1571,6 +1495,9 @@ class RouteFinder extends ChangeNotifier {
         walkingDistanceToStart: walkingDistanceToStart,
         walkingDistanceFromEnd: walkingDistanceFromEnd,
         busDistance: busDistance,
+        walkingTimeToStart: walkingTimeToStart,
+        walkingTimeFromEnd: walkingTimeFromEnd,
+        busTime: busTime,
       );
   }
   
@@ -1738,6 +1665,11 @@ class RouteFinder extends ChangeNotifier {
       
       print('🚶 RouteFinder: Created walking-only journey (${DistanceCalculator.formatDistance(totalWalkingDistance)})');
       
+      // Calculate times locally using distances
+      final walkingTimeToStart = _calculateWalkingTimeFromDistance(totalWalkingDistance);
+      final walkingTimeFromEnd = 0; // No additional walking from bus stop
+      final busTime = 0; // No bus journey for walking-only
+      
       return Journey(
         startStop: destinationStop, // Use destination stop as both start and end
         endStop: destinationStop,
@@ -1748,6 +1680,9 @@ class RouteFinder extends ChangeNotifier {
         walkingDistanceToStart: totalWalkingDistance, // All distance is walking
         walkingDistanceFromEnd: 0, // No additional walking from bus stop
         busDistance: 0, // No bus journey for walking-only
+        walkingTimeToStart: walkingTimeToStart,
+        walkingTimeFromEnd: walkingTimeFromEnd,
+        busTime: busTime,
       );
     } catch (e) {
       print('Error creating walking-only journey: $e');
@@ -1778,9 +1713,7 @@ class RouteFinder extends ChangeNotifier {
 
   /// Debug method to validate route sequences
   void _debugRouteSequences(Stop boardingStop, Stop destinationStop) {
-    print('🔍 RouteFinder: Debugging route sequences...');
-    print('   Boarding stop: ${boardingStop.name} (${boardingStop.id})');
-    print('   Destination stop: ${destinationStop.name} (${destinationStop.id})');
+    
     
     final commonRoutes = boardingStop.routes
         .where((route) => destinationStop.routes.contains(route))
@@ -1808,14 +1741,30 @@ class RouteFinder extends ChangeNotifier {
     print('🧪 RouteFinder: Testing route finding improvements...');
     
     // Test 1: Check if exact stop detection works with new thresholds
-    print('🔍 Test 1: Exact stop detection with ${EXACT_STOP_THRESHOLD}m threshold');
+   
+  }
+
+  /// Calculate walking time in minutes from distance using local speed assumptions
+  int _calculateWalkingTimeFromDistance(double distanceInMeters) {
+    if (distanceInMeters < 500) {
+      // Short distance: walking at 5 km/h
+      return DistanceCalculator.calculateWalkingTimeMinutes(distanceInMeters);
+    } else if (distanceInMeters < 2000) {
+      // Medium distance: rickshaw at 20 km/h
+      return DistanceCalculator.calculateRickshawTimeMinutes(distanceInMeters);
+    } else {
+      // Long distance: Bykea/Careem at 25 km/h
+      return DistanceCalculator.calculateJourneyTimeWithBykea(distanceInMeters);
+    }
+  }
+  
+  /// Calculate bus time in minutes from distance using local speed assumptions
+  int _calculateBusTimeFromDistance(double distanceInMeters) {
+    if (distanceInMeters <= 0) return 0;
     
-    // Test 2: Check if boarding stop sequence validation works
-    print('🔍 Test 2: Boarding stop sequence validation');
-    
-    // Test 3: Check if multiple API calls for full journey evaluation work
-    print('🔍 Test 3: Full journey evaluation with multiple API calls');
-    
-    print('✅ RouteFinder: All tests completed');
+    // Bus speed assumption: 25 km/h in city traffic
+    const double busSpeedMps = 6.94; // meters per second (25 km/h)
+    final timeInSeconds = distanceInMeters / busSpeedMps;
+    return (timeInSeconds / 60).round();
   }
 }

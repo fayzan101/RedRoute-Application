@@ -209,6 +209,62 @@ class DataService extends ChangeNotifier {
   List<String> getAllRouteNames() {
     return _routes?.map((route) => route.name).toList() ?? [];
   }
+
+  /// Get route names sorted in specific order: regular routes (1-13) first, then EV routes (1-5)
+  List<String> getSortedRouteNames() {
+    if (_routes == null) return [];
+    
+    final List<String> regularRoutes = [];
+    final List<String> evRoutes = [];
+    
+    // Separate regular routes and EV routes
+    for (final route in _routes!) {
+      if (route.name.startsWith('EV-')) {
+        evRoutes.add(route.name);
+      } else {
+        // Regular routes are just numbers
+        regularRoutes.add(route.name);
+      }
+    }
+    
+    // Sort regular routes by number (1, 2, 3, 4, 8, 9, 10, 11, 12, 13)
+    regularRoutes.sort((a, b) {
+      final aNum = int.tryParse(a) ?? 0;
+      final bNum = int.tryParse(b) ?? 0;
+      return aNum.compareTo(bNum);
+    });
+    
+    // Sort EV routes by number (EV-1, EV-2, EV-3, EV-4, EV-5)
+    evRoutes.sort((a, b) {
+      final aNum = int.tryParse(a.replaceAll('EV-', '')) ?? 0;
+      final bNum = int.tryParse(b.replaceAll('EV-', '')) ?? 0;
+      return aNum.compareTo(bNum);
+    });
+    
+    // Combine: regular routes first, then EV routes
+    return [...regularRoutes, ...evRoutes];
+  }
+
+  /// Get routes sorted in specific order: regular routes (1-13) first, then EV routes (1-5)
+  List<BusRoute> getSortedRoutes() {
+    if (_routes == null) return [];
+    
+    final sortedRouteNames = getSortedRouteNames();
+    final List<BusRoute> sortedRoutes = [];
+    
+    // Create sorted list based on the sorted route names
+    for (final routeName in sortedRouteNames) {
+      final route = _routes!.firstWhere(
+        (route) => route.name == routeName,
+        orElse: () => BusRoute(name: routeName, stops: []),
+      );
+      if (route.name.isNotEmpty) {
+        sortedRoutes.add(route);
+      }
+    }
+    
+    return sortedRoutes;
+  }
   
   BusRoute? getRouteByName(String name) {
     return _routes?.firstWhere(

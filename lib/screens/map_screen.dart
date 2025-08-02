@@ -14,12 +14,14 @@ class MapScreen extends StatefulWidget {
   final double? destinationLat;
   final double? destinationLng;
   final String? destinationName;
+  final VoidCallback? onBackPressed;
 
   const MapScreen({
     super.key,
     this.destinationLat,
     this.destinationLng,
     this.destinationName,
+    this.onBackPressed,
   });
 
   @override
@@ -134,7 +136,19 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (widget.onBackPressed != null) {
+              widget.onBackPressed!();
+            } else {
+              // Fallback: navigate back
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         title: Text(widget.destinationName ?? 'Map'),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),

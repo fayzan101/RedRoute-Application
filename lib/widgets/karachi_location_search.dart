@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
-import '../services/karachi_places_service.dart';
 import '../services/json_places_service.dart';
 import '../services/recent_searches_service.dart';
 import '../utils/distance_calculator.dart';
 
-// Unified place type that can represent both KarachiPlace and PlaceIsar
+// Unified place type that can represent JsonPlace and PlaceIsar
 class UnifiedPlace {
   final String name;
   final double lat;
@@ -23,16 +22,7 @@ class UnifiedPlace {
     this.type = 'place',
   });
 
-  factory UnifiedPlace.fromKarachiPlace(KarachiPlace place) {
-    return UnifiedPlace(
-      name: place.name,
-      lat: place.lat,
-      lon: place.lon,
-      displayName: place.displayName,
-      subtitle: place.subtitle,
-      type: 'place',
-    );
-  }
+
 
 
 
@@ -660,14 +650,4 @@ class _KarachiLocationSearchState extends State<KarachiLocationSearch> {
 
 }
 
-// Extension to add distance calculation to KarachiPlace
-extension KarachiPlaceDistance on KarachiPlace {
-  double getDistanceTo(double lat, double lon) {
-    return DistanceCalculator.calculateDistance(this.lat, this.lon, lat, lon);
-  }
-
-  String getFormattedDistanceTo(double lat, double lon) {
-    final distance = getDistanceTo(lat, lon);
-    return DistanceCalculator.formatDistance(distance);
-  }
-} 
+ 

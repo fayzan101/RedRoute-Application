@@ -99,15 +99,16 @@ class SecureTokenService {
     return 'pk.eyJ1IjoibXRhYWhhIiwiYSI6ImNtYzhzNDdxYTBoYTgydnM5Y25sOWUxNW4ifQ.LNtkLKq7wVti_5_MyaBY-w';
   }
   
-  /// Robust rate limiting with exponential backoff
+  /// Robust rate limiting with exponential backoff and first request leniency
   static Future<bool> isRateLimited() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final rateLimitData = prefs.getString(_rateLimitKey);
       
       if (rateLimitData == null) {
-        // First request, allow it
+        // First request, allow it and initialize
         await _updateRateLimitData(prefs, 1, DateTime.now().millisecondsSinceEpoch);
+        print('✅ SecureTokenService: First request allowed');
         return false;
       }
       
@@ -119,22 +120,32 @@ class SecureTokenService {
       // Reset counter every minute
       if (currentTime - lastResetTime > 60000) {
         await _updateRateLimitData(prefs, 1, currentTime);
+        print('✅ SecureTokenService: Rate limit reset, new minute started');
         return false;
       }
       
-      // Allow up to 30 requests per minute (more reasonable for mapping app)
-      if (requestCount >= 30) {
-        print('🚫 SecureTokenService: Rate limited - ${requestCount} requests in current minute');
+      // More lenient rate limiting for first few requests
+      int maxRequests = 30;
+      if (requestCount < 5) {
+        // Allow first 5 requests without any delay
+        maxRequests = 50;
+      } else if (requestCount < 15) {
+        // Allow next 10 requests with higher limit
+        maxRequests = 40;
+      }
+      
+      if (requestCount >= maxRequests) {
+        print('🚫 SecureTokenService: Rate limited - ${requestCount} requests in current minute (limit: $maxRequests)');
         return true;
       }
       
       // Increment counter
       await _updateRateLimitData(prefs, requestCount + 1, lastResetTime);
-      print('✅ SecureTokenService: Request ${requestCount + 1}/30 allowed');
+      print('✅ SecureTokenService: Request ${requestCount + 1}/$maxRequests allowed');
       return false;
       
     } catch (e) {
-      
+      print('⚠️ SecureTokenService: Rate limiting error: $e, allowing request');
       return false; // Allow request if rate limiting fails
     }
   }

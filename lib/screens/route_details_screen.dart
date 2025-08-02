@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import '../models/route.dart';
 import '../utils/distance_calculator.dart';
 import '../services/mapbox_service.dart';
-import '../services/mapbox_directions_service.dart';
 import '../services/enhanced_location_service.dart';
 import '../services/route_finder.dart';
 import '../services/transport_preference_service.dart';
@@ -125,16 +124,16 @@ void didChangeDependencies() {
     });
 
     try {
-      // Add timeout to prevent infinite loading
+      // Add timeout to prevent infinite loading (increased for first-time initialization)
       final journey = await routeFinder.findBestRoute(
         userLat: userPosition.latitude,
         userLng: userPosition.longitude,
         destLat: widget.destinationLat!,
         destLng: widget.destinationLng!,
       ).timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 45), // Increased timeout for first-time initialization
         onTimeout: () {
-          throw TimeoutException('Route finding timed out. Please try again.');
+          throw TimeoutException('Route finding timed out. This might be due to first-time initialization. Please try again.');
         },
       );
 
@@ -173,9 +172,19 @@ void didChangeDependencies() {
       setState(() {
         isLoading = false;
       });
+      
+      String errorMessage = 'Error finding route';
+      if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
+        errorMessage = 'Route finding is taking longer than expected. This might be due to first-time initialization.';
+      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+        errorMessage = 'Network connection issue. Please check your internet connection.';
+      } else {
+        errorMessage = 'Error finding route: ${e.toString().split(':').last.trim()}';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error finding route: $e'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
           action: SnackBarAction(
             label: 'Retry',
@@ -199,25 +208,15 @@ void didChangeDependencies() {
           // Get accurate route information using Mapbox Directions API
           final Map<String, dynamic> routeDetails = {};
           
-          // Get driving route from user to bus stop
-          print('📍 RouteDetails: Getting driving route from user to bus stop');
-          print('   User: (${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)})');
-          print('   Bus Stop: ${currentJourney.startStop.name} (${currentJourney.startStop.lat.toStringAsFixed(6)}, ${currentJourney.startStop.lng.toStringAsFixed(6)})');
-          print('   Bus Stop ID: ${currentJourney.startStop.id}');
-          print('   Bus Stop Routes: ${currentJourney.startStop.routes.join(', ')}');
+          
           
           // Check for very short distances
           final userToStopDistance = DistanceCalculator.calculateDistance(
             userPosition.latitude, userPosition.longitude,
             currentJourney.startStop.lat, currentJourney.startStop.lng
           );
-          print('📍 RouteDetails: Straight-line distance to bus stop: ${userToStopDistance.toStringAsFixed(2)}m');
-          print('📍 RouteDetails: Current location to bus stop distance: ${DistanceCalculator.formatDistance(userToStopDistance)}');
-          
-          if (userToStopDistance < 10) {
-            print('⚠️ RouteDetails: WARNING - Very short distance detected (< 10m)');
-            print('   This might indicate GPS noise or identical coordinates');
-          }
+         
+      
           
           final drivingToBusStop = await _getDrivingRouteToBusStop(
             startLat: userPosition.latitude,
@@ -227,9 +226,7 @@ void didChangeDependencies() {
           );
           routeDetails['drivingToBusStop'] = drivingToBusStop;
           
-          print('📍 RouteDetails: Driving to bus stop result:');
-          print('   Distance: ${drivingToBusStop['distance']}m (${(drivingToBusStop['distance'] / 1000).toStringAsFixed(2)}km)');
-          print('   Source: ${drivingToBusStop['source']}');
+         
           
           // Get driving route for bus journey (simulated)
           final busJourney = await _getDrivingRouteInfo(
@@ -241,11 +238,7 @@ void didChangeDependencies() {
           routeDetails['busJourney'] = busJourney;
           
           // Get walking route from bus stop to destination
-          print('📍 RouteDetails: Getting walking route from bus stop to destination');
-          print('   Bus Stop: ${currentJourney.endStop.name} (${currentJourney.endStop.lat.toStringAsFixed(6)}, ${currentJourney.endStop.lng.toStringAsFixed(6)})');
-          print('   Bus Stop ID: ${currentJourney.endStop.id}');
-          print('   Bus Stop Routes: ${currentJourney.endStop.routes.join(', ')}');
-          print('   Destination: (${(widget.destinationLat ?? currentJourney.endStop.lat).toStringAsFixed(6)}, ${(widget.destinationLng ?? currentJourney.endStop.lng).toStringAsFixed(6)})');
+        
           
           // Check for very short distances
           final stopToDestDistance = DistanceCalculator.calculateDistance(
@@ -253,12 +246,7 @@ void didChangeDependencies() {
             widget.destinationLat ?? currentJourney.endStop.lat,
             widget.destinationLng ?? currentJourney.endStop.lng
           );
-          print('📍 RouteDetails: Straight-line distance to destination: ${stopToDestDistance.toStringAsFixed(2)}m');
-          
-          if (stopToDestDistance < 10) {
-            print('⚠️ RouteDetails: WARNING - Very short distance detected (< 10m)');
-            print('   This might indicate GPS noise or identical coordinates');
-          }
+         
           
           final walkingToDestination = await _getWalkingRouteInfo(
             startLat: currentJourney.endStop.lat,
@@ -267,10 +255,7 @@ void didChangeDependencies() {
             endLng: widget.destinationLng ?? currentJourney.endStop.lng,
           );
           routeDetails['walkingToDestination'] = walkingToDestination;
-          
-          print('📍 RouteDetails: Walking from bus stop to destination result:');
-          print('   Distance: ${walkingToDestination['distance']}m (${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km)');
-          print('   Source: ${walkingToDestination['source']}');
+     
           
           // Calculate total journey info with validation
           final totalDistance = drivingToBusStop['distance'] + 
@@ -279,25 +264,6 @@ void didChangeDependencies() {
           final totalDuration = drivingToBusStop['duration'] + 
                                busJourney['duration'] + 
                                walkingToDestination['duration'];
-          
-          // Validate distance sources
-          print('📍 RouteDetails: Distance source validation:');
-          print('   Driving to bus stop: ${drivingToBusStop['source']} (${drivingToBusStop['distance']}m)');
-          print('   Bus journey: ${busJourney['source']} (${busJourney['distance']}m)');
-          print('   Walking to destination: ${walkingToDestination['source']} (${walkingToDestination['distance']}m)');
-          
-          // Check for potential double-counting
-          if (walkingToDestination['distance'] < 50 && 
-              (widget.destinationLat == currentJourney.endStop.lat && 
-               widget.destinationLng == currentJourney.endStop.lng)) {
-            print('⚠️ RouteDetails: WARNING - Destination is at bus stop, walking distance might be double-counted');
-          }
-          
-          print('📍 RouteDetails: Total journey calculation:');
-          print('   Driving to bus stop: ${(drivingToBusStop['distance'] / 1000).toStringAsFixed(2)}km');
-          print('   Bus journey: ${(busJourney['distance'] / 1000).toStringAsFixed(2)}km');
-          print('   Walking from bus stop: ${(walkingToDestination['distance'] / 1000).toStringAsFixed(2)}km');
-          print('   Total distance: ${(totalDistance / 1000).toStringAsFixed(2)}km');
           
           routeDetails['totalDistance'] = totalDistance;
           routeDetails['totalDuration'] = totalDuration;
@@ -404,42 +370,17 @@ void didChangeDependencies() {
     
     return Scaffold(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Journey Details'),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Column(
         children: [
-          // Header
-          Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                      child: Icon(
-                      Icons.arrow_back,
-                        color: isDark ? Colors.white : const Color(0xFF181111),
-                      size: 24,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Journey Details',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF181111),
-                      letterSpacing: -0.015,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
           
           // Loading indicator or content
           Expanded(
@@ -999,17 +940,17 @@ void didChangeDependencies() {
             children: [
               Expanded(
                 child: _buildJourneyMetric(
-                  icon: Icons.directions_walk,
-                  title: 'Final Walk',
-                  value: '${_calculateFinalLegTime()} min',
+                  icon: Icons.straighten,
+                  title: 'Distance',
+                  value: '${_calculateFinalLegDistance()} km',
                   color: Colors.green.shade600,
                 ),
               ),
               Expanded(
                 child: _buildJourneyMetric(
-                  icon: Icons.straighten,
-                  title: 'Final Distance',
-                  value: '${_calculateFinalLegDistance()} km',
+                  icon: Icons.access_time,
+                  title: 'Time',
+                  value: '${_calculateFinalLegTime()} min',
                   color: Colors.green.shade600,
                 ),
               ),
@@ -1429,7 +1370,8 @@ void didChangeDependencies() {
   int _calculateBusTime() {
     if (_currentJourney == null) return 0;
     
-    return DistanceCalculator.calculatePublicTransportTimeMinutes(_currentJourney!.busDistance);
+    // Use the pre-calculated bus time from the Journey model
+    return _currentJourney!.busTime;
   }
 
   String _calculateBusDistance() {
@@ -1452,10 +1394,7 @@ void didChangeDependencies() {
     final drivingTimeForBusJourney = _getDrivingTimeForBusJourney(); // 3rd card
     final finalLegTime = _calculateFinalLegTime(); // 4th card
     
-    // Add waiting time for bus (assume 5 minutes average)
-    const int busWaitingTime = 5;
-    
-    return drivingTimeToBusStop + drivingTimeForBusJourney + finalLegTime + busWaitingTime;
+    return drivingTimeToBusStop + drivingTimeForBusJourney + finalLegTime;
   }
 
   double _calculateTotalDistance() {
@@ -1472,28 +1411,15 @@ void didChangeDependencies() {
   int _calculateBykeaTime() {
     if (_currentJourney == null) return 0;
     
-    final totalDistance = _getDrivingDistanceToBusStopValue() + // Use driving distance
-                         _getDrivingDistanceForBusJourneyValue() + // Use driving distance for bus journey
-                         _currentJourney!.walkingDistanceFromEnd;
-    
-    return DistanceCalculator.calculateJourneyTimeWithBykea(totalDistance);
+    // Use the pre-calculated total time from the Journey model
+    return _currentJourney!.totalTime;
   }
 
   int _calculateFinalLegTime() {
     if (_currentJourney == null) return 0;
     
-    final distance = _currentJourney!.walkingDistanceFromEnd;
-    
-    if (distance < 500) {
-      // Short distance: walking
-      return DistanceCalculator.calculateWalkingTimeMinutes(distance);
-    } else if (distance < 2000) {
-      // Medium distance: rickshaw
-      return DistanceCalculator.calculateRickshawTimeMinutes(distance);
-    } else {
-      // Long distance: Bykea
-      return DistanceCalculator.calculateJourneyTimeWithBykea(distance);
-    }
+    // Use the pre-calculated time from the Journey model
+    return _currentJourney!.walkingTimeFromEnd;
   }
 
   String _calculateFinalLegDistance() {
@@ -1515,12 +1441,138 @@ void didChangeDependencies() {
     }
   }
 
-  Widget _buildTransportSuggestions(double distance, String type) {
+    Widget _buildTransportSuggestions(double distance, String type) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final List<Widget> suggestions = [];
     
+    // For the 2nd card (start), show simplified Bykea suggestion
+    if (type == 'start') {
+      final drivingTime = _getDrivingTimeToBusStop();
+      final drivingDistance = _getDrivingDistanceToBusStopValue();
+      final fare = DistanceCalculator.calculateBykeaFare(drivingDistance);
+      suggestions.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.blue.shade900 : Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.blue.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.motorcycle, size: 14, color: Colors.blue.shade700),
+              const SizedBox(width: 4),
+              Text(
+                'Bykea: ${drivingTime} mins • Rs. $fare',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return Wrap(spacing: 8, runSpacing: 4, children: suggestions);
+    }
+    
+    // For the 4th card (end), show transport suggestions based on new distance criteria
+    if (type == 'end') {
+      final distanceInKm = distance / 1000.0;
+      final time = _calculateFinalLegTime();
+      
+      if (distanceInKm < 1.0) {
+        // Walking for less than 1km
+        suggestions.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.directions_walk, size: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  'Walk (${time}min)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else if (distanceInKm >= 2.0 && distanceInKm < 4.0) {
+        // Rickshaw for 2-4km
+        final fare = DistanceCalculator.calculateRickshawFare(distance);
+        suggestions.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.motorcycle, size: 14, color: Colors.orange.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  'Rickshaw (${time}min • Rs. $fare)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else if (distanceInKm >= 5.0) {
+        // Bykea for 5km or more
+        final fare = DistanceCalculator.calculateBykeaFare(distance);
+        suggestions.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.motorcycle, size: 14, color: Colors.blue.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  'Bykea (${time}min • Rs. $fare)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return Wrap(spacing: 6, runSpacing: 6, children: suggestions);
+    }
+    
+    // For other cards, show the original transport suggestions
     // Walking suggestion (always available)
-    final walkingTime = DistanceCalculator.calculateWalkingTimeMinutes(distance);
+    final walkingTime = _currentJourney != null ? _currentJourney!.walkingTimeToStart : DistanceCalculator.calculateWalkingTimeMinutes(distance);
     suggestions.add(
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1549,7 +1601,7 @@ void didChangeDependencies() {
     
         // Rickshaw suggestion (for medium distances)
     if (distance >= 500 && distance < 2000) {
-      final rickshawTime = DistanceCalculator.calculateRickshawTimeMinutes(distance);
+      final rickshawTime = _currentJourney != null ? _currentJourney!.walkingTimeToStart : DistanceCalculator.calculateRickshawTimeMinutes(distance);
       suggestions.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1579,7 +1631,7 @@ void didChangeDependencies() {
     
     // Bykea suggestion (for longer distances)
     if (distance >= 1000) {
-      final bykeaTime = DistanceCalculator.calculateJourneyTimeWithBykea(distance);
+      final bykeaTime = _currentJourney != null ? _currentJourney!.totalTime : DistanceCalculator.calculateJourneyTimeWithBykea(distance);
       suggestions.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1603,9 +1655,9 @@ void didChangeDependencies() {
               ),
             ],
           ),
-      ),
-    );
-  }
+        ),
+      );
+    }
 
     return Wrap(
       spacing: 6,
@@ -1625,16 +1677,16 @@ void didChangeDependencies() {
     // Validate coordinates and distance
     final validation = _validateRouteRequest(startLat, startLng, endLat, endLng, routeType);
     if (!validation['isValid']) {
-      print('❌ RouteDetails: Invalid route request: ${validation['reason']}');
+      
       return validation['fallbackResult'];
     }
     
     // Calculate straight-line distance for comparison
     final straightLineDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
-    print('📍 RouteDetails: Straight-line distance: ${(straightLineDistance / 1000).toStringAsFixed(2)}km');
+
     
     try {
-      final routeInfo = await MapboxDirectionsService.getRouteInfo(
+      final routeInfo = await MapboxService.getRouteInfo(
         startLat: startLat,
         startLng: startLng,
         endLat: endLat,
@@ -1646,12 +1698,11 @@ void didChangeDependencies() {
         final mapboxDistance = routeInfo.distance;
         final ratio = mapboxDistance / straightLineDistance;
         
-        print('📍 RouteDetails: Mapbox route distance: ${(mapboxDistance / 1000).toStringAsFixed(2)}km');
-        print('📍 RouteDetails: Route/straight-line ratio: ${ratio.toStringAsFixed(2)}');
+
         
         // Validate the distance is reasonable
         if (ratio >= 0.5 && ratio <= 3.0) {
-          print('✅ RouteDetails: Mapbox distance is reasonable');
+        
           return {
             'distance': routeInfo.distance,
             'duration': routeInfo.duration,
@@ -1662,7 +1713,7 @@ void didChangeDependencies() {
             'source': 'mapbox',
           };
         } else {
-          print('⚠️ RouteDetails: Mapbox distance seems unusual (ratio: ${ratio.toStringAsFixed(2)})');
+          
           print('📍 RouteDetails: Falling back to local calculation with road network adjustment');
         }
       }
@@ -1671,7 +1722,7 @@ void didChangeDependencies() {
     }
     
     // Fallback to local calculation with road network adjustment
-    print('📍 RouteDetails: Using local distance calculation with road network adjustment');
+
     final localDistance = DistanceCalculator.calculateDistance(startLat, startLng, endLat, endLng);
     
     // Apply road network adjustment factor
@@ -1694,9 +1745,7 @@ void didChangeDependencies() {
         break;
     }
     
-    print('📍 RouteDetails: Local calculation result:');
-    print('   Straight-line: ${(localDistance / 1000).toStringAsFixed(2)}km');
-    print('   Adjusted (road network): ${(adjustedDistance / 1000).toStringAsFixed(2)}km');
+
     
     return {
       'distance': adjustedDistance,
@@ -1739,12 +1788,6 @@ void didChangeDependencies() {
     // Check if coordinates are identical (within 1 meter)
     final distance = DistanceCalculator.calculateDistance(roundedStartLat, roundedStartLng, roundedEndLat, roundedEndLng);
     
-    if (distance < 1.0) {
-      print('⚠️ RouteDetails: WARNING - Coordinates are nearly identical (${distance.toStringAsFixed(2)}m)');
-      print('   Start: (${roundedStartLat}, ${roundedStartLng})');
-      print('   End: (${roundedEndLat}, ${roundedEndLng})');
-      print('   This will result in very short or zero distance');
-    }
     
     return {
       'startLat': roundedStartLat,
@@ -1827,16 +1870,12 @@ void didChangeDependencies() {
   String _getDrivingDistanceToBusStop() {
     if (_currentJourney == null) return '0.0';
     
-    // Debug logging to see what data is available
-    print('🔍 RouteDetails: _getDrivingDistanceToBusStop debug:');
-    print('   journeyDetails available: ${journeyDetails != null}');
+   
     if (journeyDetails != null) {
       print('   drivingToBusStop available: ${journeyDetails!['drivingToBusStop'] != null}');
       if (journeyDetails!['drivingToBusStop'] != null) {
         final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>; 
-        print('   Available keys: ${drivingData.keys.toList()}');
-        print('   distance: ${drivingData['distance']}');
-        print('   source: ${drivingData['source']}');
+     
       }
     }
     
@@ -1846,7 +1885,7 @@ void didChangeDependencies() {
       if (drivingData.containsKey('distance')) {
         final drivingDistance = drivingData['distance'] as double;
         final distanceKm = (drivingDistance / 1000).toStringAsFixed(1);
-        print('   ✅ Using API driving distance: ${distanceKm} km');
+     
         return distanceKm;
       }
     }
@@ -1856,55 +1895,17 @@ void didChangeDependencies() {
     final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
     final fallbackDistance = (drivingDistance / 1000).toStringAsFixed(1);
     
-    print('   ⚠️ Using fallback calculation: ${fallbackDistance} km');
-    print('   Fallback based on: ${(straightLineDistance / 1000).toStringAsFixed(2)}km straight-line → ${(drivingDistance / 1000).toStringAsFixed(2)}km driving');
+
     
     return fallbackDistance;
   }
 
-  /// Get driving time to bus stop (using actual driving time from API)
+  /// Get driving time to bus stop (using local time calculation from Mapbox distance)
   int _getDrivingTimeToBusStop() {
     if (_currentJourney == null) return 0;
     
-    // Debug logging to see what data is available
-    print('🔍 RouteDetails: _getDrivingTimeToBusStop debug:');
-    print('   journeyDetails available: ${journeyDetails != null}');
-    if (journeyDetails != null) {
-      print('   drivingToBusStop available: ${journeyDetails!['drivingToBusStop'] != null}');
-      if (journeyDetails!['drivingToBusStop'] != null) {
-        final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>;
-        print('   Available keys: ${drivingData.keys.toList()}');
-        print('   durationMinutes: ${drivingData['durationMinutes']}');
-        print('   duration: ${drivingData['duration']}');
-        print('   source: ${drivingData['source']}');
-      }
-    }
-    
-    // Try to get the actual driving time from the journey details
-    if (journeyDetails != null && journeyDetails!['drivingToBusStop'] != null) {
-      final drivingData = journeyDetails!['drivingToBusStop'] as Map<String, dynamic>;
-      if (drivingData.containsKey('durationMinutes')) {
-        final drivingDuration = drivingData['durationMinutes'] as int;
-        print('   ✅ Using API driving time: ${drivingDuration} minutes');
-        return drivingDuration;
-      } else if (drivingData.containsKey('duration')) {
-        // Convert duration from seconds to minutes
-        final drivingDurationSeconds = drivingData['duration'] as double;
-        final drivingDurationMinutes = (drivingDurationSeconds / 60).round();
-        print('   ✅ Using API driving time (converted): ${drivingDurationMinutes} minutes');
-        return drivingDurationMinutes;
-      }
-    }
-    
-    // Fallback to calculated time if API data not available
-    final straightLineDistance = _currentJourney!.walkingDistanceToStart;
-    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
-    final fallbackTime = DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
-    
-    print('   ⚠️ Using fallback calculation: ${fallbackTime} minutes');
-    print('   Fallback based on: ${(straightLineDistance / 1000).toStringAsFixed(2)}km straight-line → ${(drivingDistance / 1000).toStringAsFixed(2)}km driving');
-    
-    return fallbackTime;
+    // Use the pre-calculated time from the Journey model
+    return _currentJourney!.walkingTimeToStart;
   }
 
   /// Get driving distance for bus journey (using actual driving distance from API)
@@ -1931,28 +1932,12 @@ void didChangeDependencies() {
     return (drivingDistance / 1000).toStringAsFixed(1);
   }
 
-  /// Get driving time for bus journey (using actual driving time from API)
+  /// Get driving time for bus journey (using local time calculation from Mapbox distance)
   int _getDrivingTimeForBusJourney() {
     if (_currentJourney == null) return 0;
     
-    // Try to get the actual driving time from the journey details
-    if (journeyDetails != null && journeyDetails!['busJourney'] != null) {
-      final drivingDuration = journeyDetails!['busJourney']['durationMinutes'] as int;
-      return drivingDuration;
-    }
-    
-    // Fallback to calculated time if API data not available
-    final straightLineDistance = DistanceCalculator.calculateDistance(
-      _currentJourney!.startStop.lat,
-      _currentJourney!.startStop.lng,
-      _currentJourney!.endStop.lat,
-      _currentJourney!.endStop.lng,
-    );
-    
-    // Apply road network adjustment for driving
-    final drivingDistance = straightLineDistance * 1.4; // Road network factor for driving
-    
-    return DistanceCalculator.calculateDrivingTimeMinutes(drivingDistance);
+    // Use the pre-calculated time from the Journey model
+    return _currentJourney!.busTime;
   }
 
   /// Calculate total walking distance
@@ -2291,39 +2276,26 @@ void didChangeDependencies() {
     int bykeaFare = 0;
     int rickshawFare = 0;
     
-    // Get user's transport preference
-    final userPreference = await TransportPreferenceService.getTransportPreference();
-    
-    // Calculate fare for getting to bus stop (if needed)
-    final distanceToBusStop = _currentJourney!.walkingDistanceToStart;
-    if (distanceToBusStop > 1000) { // If more than 1km, suggest transport
-      final transportDistance = distanceToBusStop / 1000; // Convert to km
-      
-      if (userPreference == 'Bykea') {
-        bykeaFare = TransportPreferenceService.calculateFare('Bykea', transportDistance).round();
-        totalFare += bykeaFare;
-      } else if (userPreference == 'Rickshaw') {
-        rickshawFare = TransportPreferenceService.calculateFare('Rickshaw', transportDistance).round();
-        totalFare += rickshawFare;
-      }
-      // If preference is 'Walk', no additional fare
+    // Calculate Bykea fare for getting to bus stop (same as 2nd card)
+    final distanceToBusStop = _getDrivingDistanceToBusStopValue(); // Use driving distance like 2nd card
+    if (distanceToBusStop > 0) {
+      bykeaFare = DistanceCalculator.calculateBykeaFare(distanceToBusStop);
+      totalFare += bykeaFare;
     }
     
-    // Calculate fare for getting from bus stop to destination
+    // Calculate fare for getting from bus stop to destination (if needed)
     final distanceFromBusStop = _currentJourney!.walkingDistanceFromEnd;
-    if (distanceFromBusStop > 1000) { // If more than 1km, suggest transport
-      final transportDistance = distanceFromBusStop / 1000; // Convert to km
-      
-      if (userPreference == 'Bykea') {
-        final additionalFare = TransportPreferenceService.calculateFare('Bykea', transportDistance).round();
-        bykeaFare += additionalFare;
-        totalFare += additionalFare;
-      } else if (userPreference == 'Rickshaw') {
-        final additionalFare = TransportPreferenceService.calculateFare('Rickshaw', transportDistance).round();
-        rickshawFare += additionalFare;
-        totalFare += additionalFare;
-      }
-      // If preference is 'Walk', no additional fare
+    final distanceInKm = distanceFromBusStop / 1000.0;
+    
+    if (distanceInKm >= 2.0 && distanceInKm < 4.0) {
+      // Rickshaw for 2-4km
+      rickshawFare = DistanceCalculator.calculateRickshawFare(distanceFromBusStop);
+      totalFare += rickshawFare;
+    } else if (distanceInKm >= 5.0) {
+      // Bykea for 5km or more
+      final additionalBykeaFare = DistanceCalculator.calculateBykeaFare(distanceFromBusStop);
+      bykeaFare += additionalBykeaFare;
+      totalFare += additionalBykeaFare;
     }
     
     return {

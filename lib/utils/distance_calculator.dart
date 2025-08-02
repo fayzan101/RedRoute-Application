@@ -238,4 +238,38 @@ class DistanceCalculator {
     
     return straightLineDistance * roadNetworkFactor;
   }
+
+  /// Calculate Bykea fare based on distance
+  /// Returns fare in PKR (Pakistani Rupees)
+  static int calculateBykeaFare(double distanceInMeters) {
+    const double baseFare = 50.0; // Base fare in PKR
+    const double perKmRate = 15.0; // Rate per kilometer in PKR
+    
+    final distanceInKm = distanceInMeters / 1000.0;
+    
+    if (distanceInKm <= 2.0) {
+      return baseFare.round(); // Base fare for first 2km
+    } else {
+      final additionalKm = distanceInKm - 2.0;
+      final additionalFare = additionalKm * perKmRate;
+      return (baseFare + additionalFare).round();
+    }
+  }
+
+  /// Calculate Rickshaw fare based on distance
+  /// Returns fare in PKR (Pakistani Rupees)
+  static int calculateRickshawFare(double distanceInMeters) {
+    const double baseFare = 100.0; // Base fare in PKR for 3km
+    const double perKmRate = 20.0; // Rate per kilometer in PKR after 3km
+    
+    final distanceInKm = distanceInMeters / 1000.0;
+    
+    if (distanceInKm <= 3.0) {
+      return baseFare.round(); // Base fare for first 3km
+    } else {
+      final additionalKm = distanceInKm - 3.0;
+      final additionalFare = additionalKm * perKmRate;
+      return (baseFare + additionalFare).round();
+    }
+  }
 } 
